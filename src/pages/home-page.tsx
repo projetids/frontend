@@ -5,6 +5,21 @@ import { AtomBadge, AtomButton } from "@/components/atoms"
 import { MField, MSearchBar } from "@/components/molecules"
 import { OFeatureGrid, ONavbar } from "@/components/organisms"
 import { TAppShell } from "@/components/templates"
+import { API_URL } from "@/lib/env"
+
+type Health = { status: string; database: string; redis: string }
+
+async function handleHealth() {
+  try {
+    const response = await fetch(`${API_URL}/health`)
+    const health = (await response.json()) as Health
+    const description = `Postgres ${health.database} · Redis ${health.redis} · ${API_URL}`
+    if (response.ok) toast.success(`API ${health.status}`, { description })
+    else toast.error(`API ${health.status}`, { description })
+  } catch {
+    toast.error("API injoignable", { description: API_URL })
+  }
+}
 
 const features = [
   {
@@ -51,7 +66,7 @@ export function HomePage() {
             { label: "Documentation", href: "#docs" },
             { label: "Composants", href: "#components" },
           ]}
-          action={{ label: "Statut API", onClick: () => toast.info("GET /api/v1/health") }}
+          action={{ label: "Statut API", onClick: handleHealth }}
         />
       }
       footer="Squelette frontend — React, Vite, Tailwind CSS, shadcn/ui, lucide-react, sonner."
