@@ -80,8 +80,11 @@ const RegisterForm = () => {
         user_password: form.user_password,
         user_phone: form.user_phone.trim(),
       })
-      toast.success('Utilisateur créé avec succès')
-      navigate('/', { replace: true })
+      toast.success('Compte créé', {
+        description:
+          'Votre compte est en attente de validation par un administrateur. Vous pourrez vous connecter une fois validé.',
+      })
+      navigate('/login', { replace: true })
     } catch (err) {
       if (err instanceof ApiError) {
         // CONFLICT : email ou nom d'utilisateur déjà utilisé

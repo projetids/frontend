@@ -72,13 +72,30 @@ Body :
 { "user_name": "Jean Dupont", "user_mail": "jean.dupont@example.com", "user_password": "MotDePasse123!", "user_phone": "+2250700000000" }
 ```
 
+Pour inscrire un admin, utilisez le même endpoint et fournissez exactement l'un des choix suivants :
+
+- Point de vente existant : `role: "admin"` et `code_point_sale`. Le code est résolu en `point_of_sale_id` et doit correspondre à un point existant.
+- Nouveau point de vente : `role: "admin"` et `point_of_sale_nom`. Le point est créé pendant l'inscription et son code généré est renvoyé dans `data.point_of_sale`.
+
+Exemple pour un point existant :
+
+```json
+{ "user_name": "Admin One", "user_mail": "admin1@ids.local", "user_password": "MotDePasse123!", "role": "admin", "code_point_sale": "POS-..." }
+```
+
+Exemple pour créer le point dans la même requête :
+
+```json
+{ "user_name": "Admin Two", "user_mail": "admin2@ids.local", "user_password": "MotDePasse123!", "role": "admin", "point_of_sale_nom": "Supermarché Centre" }
+```
+
 Réponse `201` :
 
 ```json
-{ "data": { "user": { ...sans password }, "access_token": "eyJ..." }, "message": "Utilisateur créé avec succès", "status": 201, "error": null, "signature": "IDS" }
+{ "data": { "user": { ...sans password }, "access_token": "eyJ...", "point_of_sale": { "id": "<uuid>", "code_point_sale": "POS-...", "nom": "Supermarché Centre" } }, "message": "Utilisateur créé avec succès", "status": 201, "error": null, "signature": "IDS" }
 ```
 
-Erreurs attendues : `BAD_REQUEST` (validation), `CONFLICT` (doublon au 409).
+`point_of_sale` est renvoyé pour les admins. Erreurs attendues : `BAD_REQUEST` (choix ou validation invalide), `NOT_FOUND` (code de point de vente inconnu), `CONFLICT` (doublon au 409).
 
 ### 4.2 POST `/auth/login` (public)
 
@@ -172,7 +189,7 @@ Erreurs : `401` (non authentifié), `403` (rôle requis : admin ou superadmin).
 Réponse : utilisateur courant (jamais de `user_password`)
 
 ```json
-{ "data": { "user_id": "<uuid>", "user_name": "Jean Dupont", "user_mail": "...", "role": "caisier" }, ... }
+{ "data": { "user_id": "<uuid>", "user_name": "Jean Dupont", "user_mail": "...", "role": "cashier" }, ... }
 ```
 
 ### 4.11 PATCH `/auth/profile` (auth)
@@ -183,19 +200,61 @@ Body : champs optionnels `{ user_name?, user_mail?, user_password?, user_phone? 
 
 Réponse : `{ "data": null, "message": "Compte supprimé avec succès" }`.
 
+### 4.13 POST `/auth/admins` (auth, rôle `superadmin`)
+
+Crée un admin en statut `pending` avec un point de vente fourni.
+
+Body :
+
+```json
+{ "user_name": "Admin One", "user_mail": "admin1@ids.local", "user_password": "MotDePasse123!", "user_phone": "+2250700000000", "point_of_sale_id": "<uuid>", "point_of_sale_nom": "Supermarché Centre" }
+```
+
+- Si `point_of_sale_id` fourni → le PO existe
+- Si absent mais `point_of_sale_nom` fourni → création du PO puis utilisation de son `id`
+- Réponse : `{ "data": { ...admin }, ... }` — statut `pending`
+
+### 4.15 GET `/auth/admins/pending` (auth, rôle `superadmin`)
+
+Liste les comptes admin en attente de validation.
+
+Réponse `200` : enveloppe avec `data: Admin[]` + `meta`.
+
+### 4.15 GET `/auth/caisiers/pending` (auth, rôle `admin`)
+
+Liste les demandes de cashier en attente de validation (admin, scoped par son point de vente).
+
+Réponse `200` : enveloppe avec `data: Cashier[]`.
+
+### 4.16 PUT `/auth/admins/:id/validate` (auth, rôle `superadmin`)
+
+Valide (active) un admin en attente.
+
+### 4.17 PUT `/auth/caisiers/:id/validate` (auth, rôle `admin`)
+
+Valide (active) un cashier.
+
+### 4.18 PUT `/auth/caisiers/:id/reactivate` (auth, rôle `admin`)
+
+Réactive un cashier rejeté.
+
+### 4.19 PUT `/auth/admins/:id/reactivate` (auth, rôle `superadmin`)
+
+Réactive un admin rejeté.
+
 ## 5. Rôles
 
-Rôles possibles côté API : `superadmin`, `admin`, `caisier` — `caisier` est le rôle par défaut à l'inscription.
+Rôles possibles côté API : `superadmin`, `admin`, `cashier` — `cashier` est le rôle par défaut à l'inscription.
 
 | Rôle | Accès |
 |---|---|
 | `superadmin` | tout, y compris `GET /auth/users` |
 | `admin` | gestion, y compris `GET /auth/users` |
-| `caisier` | profil / session uniquement |
+| `cashier` | profil / session uniquement |
 
 Les endpoints protégés par rôle renvoient `403 Forbidden` avec `code: FORBIDDEN`. Prévoir côté front une UI par rôle.
 
-> Seeder disponible : `npm run seed` crée 2 comptes par rôle (`superadmin1/2`, `admin1/2`, `caissier1/2` @ids.local, mot de passe via `SEED_PASSWORD`, défaut `ChangerMo123!`).
+> Seeder disponible : `npm run seed` crée 2 comptes par rôle (`superadmin1/2`, `admin1/2`, `cashier1/2` @ids.local, mot de passe via `SEED_PASSWORD`, défaut `ChangerMo123!`).
 
 ## 6. Flux typiques
 

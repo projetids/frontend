@@ -25,7 +25,7 @@ export class ApiError extends Error {
 }
 
 export type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE"
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
   body?: unknown
   /** Query params sérialisés ; les valeurs undefined/null sont ignorées. */
   query?: Record<string, string | number | boolean | undefined | null>

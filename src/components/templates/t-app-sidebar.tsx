@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom"
 import { LogOutIcon, type LucideIcon } from "lucide-react"
 import { AtomIcon } from "@/components/atoms"
 import { Button } from "@/components/ui/button"
+import type { ApiRole } from "@/types/api"
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +28,8 @@ export type TAppSidebarItem = {
   icon: LucideIcon
   /** Route interne (`/…`) ou ancre (`#…`). */
   href: string
+  /** Rôles autorisés à voir l'entrée (tous les rôles si absent). */
+  roles?: ApiRole[]
 }
 
 export type TAppSidebarGroup = {

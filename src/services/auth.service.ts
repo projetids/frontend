@@ -8,6 +8,7 @@ function readJson(response: Response): Promise<unknown> {
 import type {
   ApiEnvelope,
   ApiUser,
+  CreateAdminPayload,
   LoginPayload,
   LoginResponse,
   ProfileUpdatePayload,
@@ -145,4 +146,67 @@ export async function updateProfile(payload: ProfileUpdatePayload) {
 export async function deleteProfile() {
   const envelope = await apiRequest<null>("/auth/profile", { method: "DELETE" })
   return { envelope, message: envelope.message }
+}
+
+// ——— Gestion et validation des comptes (superadmin / admin) ———
+
+/**
+ * POST /auth/admins (superadmin) — crée un admin au statut `pending`.
+ * Le point de vente est soit existant (`point_of_sale_id`), soit créé à la
+ * volée à partir de `point_of_sale_nom`.
+ */
+export async function createAdmin(payload: CreateAdminPayload) {
+  const envelope = await apiRequest<ApiUser>("/auth/admins", {
+    method: "POST",
+    body: payload,
+  })
+  return { envelope, user: envelope.data }
+}
+
+/** GET /auth/admins/pending (superadmin) — admins en attente de validation. */
+export async function getPendingAdmins() {
+  const envelope = await apiRequest<ApiUser[]>("/auth/admins/pending")
+  return { envelope, users: envelope.data }
+}
+
+/** GET /auth/caisiers/pending (admin) — caissiers en attente du point de vente. */
+export async function getPendingCaisiers() {
+  const envelope = await apiRequest<ApiUser[]>("/auth/caisiers/pending")
+  return { envelope, users: envelope.data }
+}
+
+/** PUT /auth/admins/:id/validate (superadmin) — active un admin en attente (§4.16). */
+export async function validateAdmin(user_id: string) {
+  const envelope = await apiRequest<ApiUser>(
+    `/auth/admins/${encodeURIComponent(user_id)}/validate`,
+    { method: "PUT" },
+  )
+  return { envelope, user: envelope.data }
+}
+
+/** PUT /auth/caisiers/:id/validate (admin) — active un caissier en attente (§4.17). */
+export async function validateCaisier(user_id: string) {
+  const envelope = await apiRequest<ApiUser>(
+    `/auth/caisiers/${encodeURIComponent(user_id)}/validate`,
+    { method: "PUT" },
+  )
+  return { envelope, user: envelope.data }
+}
+
+/** PUT /auth/admins/:id/reactivate (superadmin) — réactive un admin rejeté (§4.19). */
+export async function reactivateAdmin(user_id: string) {
+  const envelope = await apiRequest<ApiUser>(
+    `/auth/admins/${encodeURIComponent(user_id)}/reactivate`,
+    { method: "PUT" },
+  )
+  return { envelope, user: envelope.data }
+}
+
+/** PUT /auth/caisiers/:id/reactivate (admin) — réactive un caissier rejeté (§4.18). */
+export async function reactivateCaisier(user_id: string) {
+  const envelope = await apiRequest<ApiUser>(
+    `/auth/caisiers/${encodeURIComponent(user_id)}/reactivate`,
+    { method: "PUT" },
+  )
+  return { envelope, user: envelope.data }
 }

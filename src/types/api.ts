@@ -4,8 +4,11 @@ export const API_ERROR_CODES = [
   "BAD_REQUEST",
   "UNAUTHORIZED",
   "FORBIDDEN",
+  "NOT_FOUND",
   "CONFLICT",
   "TOO_MANY_ATTEMPTS",
+  "ACCOUNT_PENDING",
+  "ACCOUNT_REJECTED",
   "INVALID_RESET_TOKEN",
 ] as const
 
@@ -33,7 +36,11 @@ export type ApiMeta = {
   total: number
 }
 
-export type ApiRole = "superadmin" | "admin" | "caisier"
+/** Rôles exposés par l'API (`caisier` a été renommé `cashier`). */
+export type ApiRole = "superadmin" | "admin" | "cashier"
+
+/** Cycle de vie d'un compte : validation par le rôle supérieur. */
+export type ApiUserStatus = "pending" | "active" | "rejected"
 
 /** Utilisateur renvoyé par l'API — jamais de `user_password`. */
 export type ApiUser = {
@@ -42,6 +49,11 @@ export type ApiUser = {
   user_mail: string
   user_phone?: string | null
   role: ApiRole
+  user_is_active?: boolean
+  user_status?: ApiUserStatus
+  /** Point de vente de rattachement (admins et caissiers). */
+  point_of_sale_id?: string | null
+  created_by?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -83,6 +95,20 @@ export type UsersQuery = {
   search?: string
   sort_by?: "user_name" | "user_mail" | "user_phone" | "role" | "created_at"
   sort_order?: "ASC" | "DESC"
+}
+
+/**
+ * POST /auth/admins (superadmin) — crée un admin `pending` rattaché à un point
+ * de vente : soit existant (`point_of_sale_id`), soit créé à la volée
+ * (`point_of_sale_nom`).
+ */
+export type CreateAdminPayload = {
+  user_name: string
+  user_mail: string
+  user_password: string
+  user_phone?: string
+  point_of_sale_id?: string
+  point_of_sale_nom?: string
 }
 
 export type ProfileUpdatePayload = {

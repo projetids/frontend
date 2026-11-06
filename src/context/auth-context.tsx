@@ -96,13 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const register = useCallback(async (payload: RegisterPayload) => {
-    const { user: newUser, access_token } = await authService.register(payload)
-    // Le register ne renvoie pas refresh_token/session_id : l'utilisateur
-    // devra se connecter ; on ouvre tout de même la session en cours.
-    setAccessToken(access_token)
-    setUser(newUser)
-    setThisUser(newUser)
-    setStatus("authenticated")
+    // L'inscription crée un compte au statut `pending` : la connexion est
+    // refusée (ACCOUNT_PENDING) tant qu'un admin ne l'a pas validé, donc on
+    // n'ouvre aucune session ici — l'utilisateur devra se connecter ensuite.
+    await authService.register(payload)
   }, [])
 
   const logout = useCallback(async () => {

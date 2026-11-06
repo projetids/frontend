@@ -39,11 +39,17 @@ const LoginForm = () => {
       navigate('/', { replace: true })
     } catch (err) {
       if (err instanceof ApiError) {
-        // Throttle : 5 tentatives de login / 15 min / email
+        // Throttle : 5 tentatives de login / 15 min / email ; les comptes
+        // créés restent `pending` jusqu'à validation (ACCOUNT_PENDING /
+        // ACCOUNT_REJECTED).
         const description =
           err.code === 'TOO_MANY_ATTEMPTS'
             ? 'Trop de tentatives. Patientez 15 minutes avant de réessayer.'
-            : err.details || err.message
+            : err.code === 'ACCOUNT_PENDING'
+              ? "Votre compte est en attente de validation par un administrateur."
+              : err.code === 'ACCOUNT_REJECTED'
+                ? 'Votre compte a été rejeté ou désactivé. Contactez un administrateur.'
+                : err.details || err.message
         toast.error('Échec de la connexion', { description })
       } else {
         toast.error('Échec de la connexion', { description: 'Erreur inattendue' })

@@ -14,6 +14,16 @@ export function TAuthenticatedLayout() {
   const { user, logout } = useAuth()
   const [confirmLogout, setConfirmLogout] = useState(false)
 
+  // Les entrées marquées `roles` ne sont visibles que pour ces rôles.
+  const groups = appNavigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.roles || (user ? item.roles.includes(user.role) : false),
+      ),
+    }))
+    .filter((group) => group.items.length > 0)
+
   async function handleLogout() {
     try {
       await logout()
@@ -26,7 +36,7 @@ export function TAuthenticatedLayout() {
   return (
     <TAppSidebar
       brand="IDS"
-      groups={appNavigation}
+      groups={groups}
       user={
         user
           ? {
