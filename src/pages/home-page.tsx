@@ -1,9 +1,8 @@
 import { useNavigate } from "react-router-dom"
-import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
-import { OFeatureGrid, ONavbar } from "@/components/organisms"
-import { TAppShell } from "@/components/templates"
+import { OFeatureGrid } from "@/components/organisms"
 import { useAuth } from "@/context/auth-context"
+import { roleLabel } from "@/lib/roles"
 
 const features = [
   {
@@ -48,65 +47,39 @@ const features = [
   },
 ] as const
 
-const roleLabels: Record<string, string> = {
-  superadmin: "Superadmin",
-  admin: "Admin",
-  caisier: "Caissier",
-}
-
 export function HomePage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
-
-  async function handleLogout() {
-    try {
-      await logout()
-      navigate("/login", { replace: true })
-    } catch {
-      toast.error("Déconnexion impossible")
-    }
-  }
+  const { user } = useAuth()
 
   return (
-    <TAppShell
-      header={
-        <ONavbar
-          brand="IDS"
-          links={[{ label: "Tableau de bord", href: "/dashboard" }]}
-          action={{ label: "Déconnexion", onClick: () => void handleLogout() }}
-        />
-      }
-      footer="IDS — Gestion de Supermarché · Plateforme interne"
-    >
-      <div className="flex flex-col gap-10">
-        <section className="flex max-w-2xl flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <AtomBadge variant="outline">Gestion de Supermarché</AtomBadge>
-            {user ? (
-              <AtomBadge variant="secondary">
-                {user.user_name} · {roleLabels[user.role] ?? user.role}
-              </AtomBadge>
-            ) : null}
-          </div>
-          <h1 className="text-4xl font-semibold tracking-tight">
-            Bienvenue sur IDS{user ? `, ${user.user_name}` : ""}
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            La plateforme IDS centralise la gestion du supermarché&nbsp;:
-            catalogue produits, caisse, stock et comptes utilisateurs —
-            dans une interface simple et sécurisée.
-          </p>
-          <div>
-            <AtomButton onClick={() => navigate("/dashboard")}>
-              Ouvrir le tableau de bord
-            </AtomButton>
-          </div>
-        </section>
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-10">
+      <section className="flex max-w-2xl flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <AtomBadge variant="outline">Gestion de Supermarché</AtomBadge>
+          {user ? (
+            <AtomBadge variant="secondary">
+              {user.user_name} · {roleLabel(user.role)}
+            </AtomBadge>
+          ) : null}
+        </div>
+        <h1 className="text-4xl font-semibold tracking-tight">
+          Bienvenue sur IDS{user ? `, ${user.user_name}` : ""}
+        </h1>
+        <p className="text-muted-foreground text-lg">
+          La plateforme IDS centralise la gestion du supermarché&nbsp;:
+          catalogue produits, caisse, stock et comptes utilisateurs —
+          dans une interface simple et sécurisée.
+        </p>
+        <div>
+          <AtomButton onClick={() => navigate("/dashboard")}>
+            Ouvrir le tableau de bord
+          </AtomButton>
+        </div>
+      </section>
 
-        <section id="modules">
-          <OFeatureGrid features={[...features]} columns={3} />
-        </section>
-      </div>
-    </TAppShell>
+      <section id="modules">
+        <OFeatureGrid features={[...features]} columns={3} />
+      </section>
+    </div>
   )
 }

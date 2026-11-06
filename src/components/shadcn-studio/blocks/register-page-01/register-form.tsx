@@ -13,6 +13,7 @@ import {
 import { EyeOffIcon, EyeIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/auth-context'
+import { MConfirmDialog } from '@/components/molecules'
 import { ApiError } from '@/lib/api-client'
 import { validateEmail, validatePassword, validatePhone } from '@/lib/validation'
 
@@ -29,6 +30,7 @@ const RegisterForm = () => {
   const { register } = useAuth()
   const [isVisible, setIsVisible] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
   // DTO API : user_name, user_mail, user_password, user_phone
   const [form, setForm] = useState({
@@ -64,6 +66,12 @@ const RegisterForm = () => {
       return
     }
 
+    // Formulaire valide : on demande une confirmation explicite avant
+    // de créer définitivement le compte.
+    setConfirmOpen(true)
+  }
+
+  async function handleConfirm() {
     setLoading(true)
     try {
       await register({
@@ -93,6 +101,14 @@ const RegisterForm = () => {
 
   return (
     <form onSubmit={handleSubmit}>
+      <MConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title='Créer ce compte ?'
+        description={`Le compte ${form.user_mail.trim().toLowerCase()} sera créé avec le rôle caissier. Vérifiez les informations avant de continuer.`}
+        confirmLabel='Créer le compte'
+        onConfirm={() => void handleConfirm()}
+      />
       <FieldGroup className='gap-4'>
         <Field className='gap-2'>
           <FieldLabel htmlFor='userName' className='leading-5' required>

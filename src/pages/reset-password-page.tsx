@@ -5,7 +5,7 @@ import { useBackendMessage } from "@/hooks/use-backend-message"
 import { validatePassword } from "@/lib/validation"
 import AuthBackgroundShape from "@/assets/svg/auth-background-shape"
 import { AtomButton } from "@/components/atoms"
-import { MField } from "@/components/molecules"
+import { MConfirmDialog, MField } from "@/components/molecules"
 import {
   Card,
   CardContent,
@@ -24,9 +24,10 @@ export function ResetPasswordPage() {
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [loading, setLoading] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({})
 
-  async function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
 
     const passwordError = !token
@@ -42,6 +43,11 @@ export function ResetPasswordPage() {
     }
 
     setErrors({})
+    // Formulaire valide : on confirme le remplacement du mot de passe.
+    setConfirmOpen(true)
+  }
+
+  async function handleConfirm() {
     setLoading(true)
     try {
       await authService.resetPassword(token, password)
@@ -57,6 +63,14 @@ export function ResetPasswordPage() {
 
   return (
     <div className="relative flex h-auto min-h-screen items-center justify-center overflow-x-hidden px-4 py-10 sm:px-6 lg:px-8">
+      <MConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Réinitialiser le mot de passe ?"
+        description="Votre mot de passe actuel sera remplacé. Vous devrez vous reconnecter avec le nouveau."
+        confirmLabel="Réinitialiser"
+        onConfirm={() => void handleConfirm()}
+      />
       <div className="absolute">
         <AuthBackgroundShape />
       </div>

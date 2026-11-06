@@ -5,7 +5,7 @@ import { useBackendMessage } from "@/hooks/use-backend-message"
 import { EMAIL_REGEX } from "@/lib/validation"
 import AuthBackgroundShape from "@/assets/svg/auth-background-shape"
 import { AtomButton } from "@/components/atoms"
-import { MField } from "@/components/molecules"
+import { MConfirmDialog, MField } from "@/components/molecules"
 import {
   Card,
   CardContent,
@@ -21,14 +21,20 @@ export function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | undefined>()
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
-  async function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     if (!EMAIL_REGEX.test(email)) {
       setError("Adresse e-mail invalide.")
       return
     }
     setError(undefined)
+    // Adresse valide : on confirme l'envoi du lien avant d'appeler l'API.
+    setConfirmOpen(true)
+  }
+
+  async function handleConfirm() {
     setLoading(true)
     try {
       const { message } = await authService.forgotPassword(email)
@@ -48,6 +54,14 @@ export function ForgotPasswordPage() {
 
   return (
     <div className="relative flex h-auto min-h-screen items-center justify-center overflow-x-hidden px-4 py-10 sm:px-6 lg:px-8">
+      <MConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Envoyer le lien de réinitialisation ?"
+        description={`Un e-mail sera envoyé à ${email.trim()} si un compte existe. Le lien sera valable 15 minutes.`}
+        confirmLabel="Envoyer le lien"
+        onConfirm={() => void handleConfirm()}
+      />
       <div className="absolute">
         <AuthBackgroundShape />
       </div>
