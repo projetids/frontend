@@ -95,8 +95,8 @@ const RegisterForm = () => {
     <form onSubmit={handleSubmit}>
       <FieldGroup className='gap-4'>
         <Field className='gap-2'>
-          <FieldLabel htmlFor='userName' className='leading-5'>
-            Nom complet*
+          <FieldLabel htmlFor='userName' className='leading-5' required>
+            Nom complet
           </FieldLabel>
           <Input
             id='userName'
@@ -108,8 +108,8 @@ const RegisterForm = () => {
           />
         </Field>
         <Field className='gap-2'>
-          <FieldLabel htmlFor='registerMail' className='leading-5'>
-            Adresse e-mail*
+          <FieldLabel htmlFor='registerMail' className='leading-5' required>
+            Adresse e-mail
           </FieldLabel>
           <Input
             type='email'
@@ -122,8 +122,8 @@ const RegisterForm = () => {
           />
         </Field>
         <Field className='gap-2'>
-          <FieldLabel htmlFor='userPhone' className='leading-5'>
-            Téléphone*
+          <FieldLabel htmlFor='userPhone' className='leading-5' required>
+            Téléphone
           </FieldLabel>
           <Input
             id='userPhone'
@@ -135,8 +135,8 @@ const RegisterForm = () => {
           />
         </Field>
         <Field className='w-full gap-2'>
-          <FieldLabel htmlFor='registerPassword' className='leading-5'>
-            Mot de passe*
+          <FieldLabel htmlFor='registerPassword' className='leading-5' required>
+            Mot de passe
           </FieldLabel>
           <InputGroup>
             <InputGroupInput
@@ -164,8 +164,8 @@ const RegisterForm = () => {
           </InputGroup>
         </Field>
         <Field className='w-full gap-2'>
-          <FieldLabel htmlFor='registerConfirm' className='leading-5'>
-            Confirmer le mot de passe*
+          <FieldLabel htmlFor='registerConfirm' className='leading-5' required>
+            Confirmer le mot de passe
           </FieldLabel>
           <Input
             id='registerConfirm'

@@ -57,8 +57,8 @@ const LoginForm = () => {
     <form onSubmit={handleSubmit}>
       <FieldGroup className='gap-4'>
         <Field className='gap-2'>
-          <FieldLabel htmlFor='userMail' className='leading-5'>
-            Adresse e-mail*
+          <FieldLabel htmlFor='userMail' className='leading-5' required>
+            Adresse e-mail
           </FieldLabel>
           <Input
             type='email'
@@ -71,8 +71,8 @@ const LoginForm = () => {
           />
         </Field>
         <Field className='w-full gap-2'>
-          <FieldLabel htmlFor='userPassword' className='leading-5'>
-            Mot de passe*
+          <FieldLabel htmlFor='userPassword' className='leading-5' required>
+            Mot de passe
           </FieldLabel>
           <InputGroup>
             <InputGroupInput

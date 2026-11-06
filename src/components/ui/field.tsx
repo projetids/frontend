@@ -11,8 +11,22 @@ export function Field({ className, ...props }: React.ComponentProps<"div">) {
   return <div className={cn("flex flex-col gap-2", className)} {...props} />
 }
 
-export function FieldLabel({ className, ...props }: React.ComponentProps<typeof Label>) {
-  return <Label className={cn(className)} {...props} />
+export function FieldLabel({
+  className,
+  required,
+  children,
+  ...props
+}: React.ComponentProps<typeof Label> & { required?: boolean }) {
+  return (
+    <Label data-required={required ? true : undefined} className={cn(className)} {...props}>
+      {children}
+      {required ? (
+        <span className="text-destructive" aria-hidden>
+          {" "}*
+        </span>
+      ) : null}
+    </Label>
+  )
 }
 
 export function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {

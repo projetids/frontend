@@ -12,6 +12,7 @@ export function MField({
   label,
   description,
   error,
+  required,
   id,
   ...inputProps
 }: MFieldProps) {
@@ -21,9 +22,17 @@ export function MField({
 
   return (
     <div className="grid gap-1.5">
-      <AtomLabel htmlFor={inputId}>{label}</AtomLabel>
+      <AtomLabel htmlFor={inputId}>
+        {label}
+        {required ? (
+          <span className="text-destructive" aria-hidden>
+            {" "}*
+          </span>
+        ) : null}
+      </AtomLabel>
       <AtomInput
         id={inputId}
+        required={required}
         aria-invalid={error ? true : undefined}
         aria-describedby={descriptionId}
         {...inputProps}
