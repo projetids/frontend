@@ -1,6 +1,4 @@
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 
 import Logo from '@/components/shadcn-studio/logo'
 import AuthBackgroundShape from '@/assets/svg/auth-background-shape'
@@ -19,47 +17,22 @@ const Login = () => {
           <Logo className='gap-3' />
 
           <div>
-            <CardTitle className='mb-2 text-2xl font-semibold'>Sign in to Shadcn Studio</CardTitle>
-            <CardDescription className='text-base'>Ship Faster and Focus on Growth.</CardDescription>
+            <CardTitle className='mb-2 text-2xl font-semibold'>Connexion à IDS</CardTitle>
+            <CardDescription className='text-base'>Accédez à votre espace de travail.</CardDescription>
           </div>
         </CardHeader>
 
         <CardContent className='px-6'>
-          <p className='text-muted-foreground mb-6 text-base'>
-            Login with{' '}
-            <a href='#' className='text-card-foreground hover:underline'>
-              Magic Link
-            </a>
-          </p>
-
-          <div className='mb-6 flex flex-wrap gap-4 sm:gap-6'>
-            <Button variant='outline' className='grow'>
-              Login as User
-            </Button>
-            <Button variant='outline' className='grow'>
-              Login as Admin
-            </Button>
-          </div>
 
           <div className='space-y-4'>
             <LoginForm />
 
             <p className='text-muted-foreground text-center text-base'>
-              New on our platform?{' '}
+              Nouveau sur la plateforme ?{' '}
               <Link to='/register' className='text-card-foreground hover:underline'>
-                Create an account
+                Créer un compte
               </Link>
             </p>
-
-            <div className='flex items-center gap-4'>
-              <Separator className='flex-1' />
-              <p className='text-base'>or</p>
-              <Separator className='flex-1' />
-            </div>
-
-            <Button variant='ghost' className='w-full'>
-              Sign in with google
-            </Button>
           </div>
         </CardContent>
       </Card>

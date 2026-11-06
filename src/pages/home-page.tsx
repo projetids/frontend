@@ -1,25 +1,12 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { ArrowRightIcon } from "lucide-react"
 import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
 import { MField, MSearchBar } from "@/components/molecules"
 import { OFeatureGrid, ONavbar } from "@/components/organisms"
 import { TAppShell } from "@/components/templates"
-import { API_URL } from "@/lib/env"
-
-type Health = { status: string; database: string; redis: string }
-
-async function handleHealth() {
-  try {
-    const response = await fetch(`${API_URL}/health`)
-    const health = (await response.json()) as Health
-    const description = `Postgres ${health.database} · Redis ${health.redis} · ${API_URL}`
-    if (response.ok) toast.success(`API ${health.status}`, { description })
-    else toast.error(`API ${health.status}`, { description })
-  } catch {
-    toast.error("API injoignable", { description: API_URL })
-  }
-}
+import { useAuth } from "@/context/auth-context"
 
 const features = [
   {
@@ -43,8 +30,19 @@ const features = [
 ] as const
 
 export function HomePage() {
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [email, setEmail] = useState("")
   const [error, setError] = useState<string | undefined>()
+
+  async function handleLogout() {
+    try {
+      await logout()
+      navigate("/login", { replace: true })
+    } catch {
+      toast.error("Déconnexion impossible")
+    }
+  }
 
   function handleSubmit() {
     if (!email.includes("@")) {
@@ -66,14 +64,21 @@ export function HomePage() {
             { label: "Documentation", href: "#docs" },
             { label: "Composants", href: "#components" },
           ]}
-          action={{ label: "Statut API", onClick: handleHealth }}
+          action={{ label: "Déconnexion", onClick: () => void handleLogout() }}
         />
       }
       footer="Squelette frontend — React, Vite, Tailwind CSS, shadcn/ui, lucide-react, sonner."
     >
       <div className="flex flex-col gap-10">
         <section className="flex max-w-2xl flex-col gap-4">
-          <AtomBadge variant="outline">Design system prêt</AtomBadge>
+          <div className="flex items-center gap-2">
+            <AtomBadge variant="outline">Design system prêt</AtomBadge>
+            {user ? (
+              <AtomBadge variant="secondary">
+                {user.user_name} · {user.role}
+              </AtomBadge>
+            ) : null}
+          </div>
           <h1 className="text-3xl font-semibold tracking-tight">
             Base frontend et backend séparées
           </h1>
