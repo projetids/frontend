@@ -1,7 +1,7 @@
-import { HomePage } from "@/pages"
+import Register from "@/components/shadcn-studio/blocks/register-page-01/register-page-01"
 
 export function App() {
-  return <HomePage />
+  return <Register />
 }
 
 export default App

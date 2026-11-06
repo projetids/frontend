@@ -2,14 +2,14 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 
 import "./index.css"
-import App from "./App.tsx"
+import { AppRouter } from "./router/index.tsx"
 import { MToaster } from "@/components/molecules"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
-      <App />
+      <AppRouter />
       <MToaster />
     </ThemeProvider>
   </StrictMode>
