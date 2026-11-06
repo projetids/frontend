@@ -5,24 +5,32 @@ import {
   DatabaseIcon,
   LayersIcon,
   MenuIcon,
+  PackageIcon,
+  ReceiptTextIcon,
   RocketIcon,
   SearchIcon,
   ShieldIcon,
+  ShoppingCartIcon,
   SparklesIcon,
+  UsersIcon,
   ZapIcon,
   type LucideIcon,
 } from "lucide-react"
 
 export const iconRegistry = {
   "arrow-right": ArrowRightIcon,
+  cart: ShoppingCartIcon,
   check: CheckIcon,
   database: DatabaseIcon,
   layers: LayersIcon,
   menu: MenuIcon,
+  package: PackageIcon,
+  receipt: ReceiptTextIcon,
   rocket: RocketIcon,
   search: SearchIcon,
   shield: ShieldIcon,
   sparkles: SparklesIcon,
+  users: UsersIcon,
   zap: ZapIcon,
 } as const satisfies Record<string, LucideIcon>
 

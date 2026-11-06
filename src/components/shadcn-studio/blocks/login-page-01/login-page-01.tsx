@@ -18,7 +18,9 @@ const Login = () => {
 
           <div>
             <CardTitle className='mb-2 text-2xl font-semibold'>Connexion à IDS</CardTitle>
-            <CardDescription className='text-base'>Accédez à votre espace de travail.</CardDescription>
+            <CardDescription className='text-base'>
+              Accédez à votre espace de gestion du supermarché.
+            </CardDescription>
           </div>
         </CardHeader>
 

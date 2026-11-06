@@ -18,7 +18,9 @@ const Register = () => {
 
           <div>
             <CardTitle className='mb-2 text-2xl font-semibold'>Créer un compte</CardTitle>
-            <CardDescription className='text-base'>Rejoignez la plateforme IDS.</CardDescription>
+            <CardDescription className='text-base'>
+              Rejoignez l&apos;équipe de gestion du supermarché.
+            </CardDescription>
           </div>
         </CardHeader>
 

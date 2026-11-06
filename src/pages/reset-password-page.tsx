@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import Logo from "@/components/shadcn-studio/logo"
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
@@ -62,13 +63,14 @@ export function ResetPasswordPage() {
 
       <Card className="z-1 w-full gap-6 py-6 sm:max-w-lg">
         <CardHeader className="gap-6 px-6">
+          <Logo className="gap-3" />
+
           <div>
             <CardTitle className="mb-2 text-2xl font-semibold">
               Nouveau mot de passe
             </CardTitle>
             <CardDescription className="text-base">
-              Minimum 8 caractères, avec majuscule, minuscule, chiffre et
-              caractère spécial.
+              Redéfinissez le mot de passe de votre compte IDS.
             </CardDescription>
           </div>
         </CardHeader>
