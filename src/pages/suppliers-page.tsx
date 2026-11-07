@@ -130,6 +130,20 @@ export function SuppliersPage() {
     setFormOpen(true)
   }
 
+  function openViewDetails(supplier: ApiSupplier) {
+    setValues({
+      supplier_number: supplier.supplier_number,
+      suppliers_name: supplier.name,
+      suppliers_civility: supplier.civility,
+      suppliers_contact_name: supplier.contact_name ?? "",
+      suppliers_address: supplier.address ?? "",
+      suppliers_telephone: supplier.telephone ?? "",
+      suppliers_email: supplier.email ?? "",
+    })
+    setFormErrors({})
+    setFormOpen(true)
+  }
+
   function closeForm() {
     setFormOpen(false)
     setEditing(null)
@@ -345,6 +359,7 @@ export function SuppliersPage() {
             disabled={deleting || saving}
             onEdit={openEdit}
             onDelete={setToDelete}
+            onViewDetails={openViewDetails}
             onRetry={reload}
           />
 
