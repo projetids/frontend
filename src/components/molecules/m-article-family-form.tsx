@@ -2,10 +2,10 @@ import { AtomButton } from "@/components/atoms"
 import { MField } from "./m-field"
 
 // Formulaire de famille d'articles (création et modification). Le DTO de
-// l'API n'expose qu'un champ : `name` (obligatoire).
+// l'API n'expose qu'un champ : `article_families_name` (obligatoire).
 
 export type MArticleFamilyFormValues = {
-  name: string
+  article_families_name: string
 }
 
 export type MArticleFamilyFormErrors = Partial<
@@ -13,7 +13,7 @@ export type MArticleFamilyFormErrors = Partial<
 >
 
 export const EMPTY_ARTICLE_FAMILY_FORM: MArticleFamilyFormValues = {
-  name: "",
+  article_families_name: "",
 }
 
 export type MArticleFamilyFormProps = {
@@ -61,9 +61,11 @@ export function MArticleFamilyForm({
         <MField
           label="Nom de la famille"
           id="articleFamilyName"
-          value={values.name}
-          error={errors.name}
-          onChange={(event) => onChange({ name: event.target.value })}
+          value={values.article_families_name}
+          error={errors.article_families_name}
+          onChange={(event) =>
+            onChange({ article_families_name: event.target.value })
+          }
           autoComplete="off"
           disabled={submitting}
           required

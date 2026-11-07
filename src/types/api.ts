@@ -166,22 +166,15 @@ export type CreateSupplierPayload = {
   point_of_sale_id?: string | null
 }
 
-export type UpdateSupplierPayload = Partial<
-  CreateSupplierPayload & { supplier_number?: string }
->
+/** Le numéro est généré par le backend : il n'est jamais modifiable. */
+export type UpdateSupplierPayload = Partial<CreateSupplierPayload>
 
 // ——— Familles d'articles (module /article-families) ———
 
-/** Famille d'articles renvoyée par l'API. `id` est un entier auto-généré. */
+/** Famille d'articles renvoyée par l'API (colonnes préfixées). */
 export type ApiArticleFamily = {
-  id: number
-  name: string
-}
-
-/** Entrée légère de `GET /article-families/select` (id + nom). */
-export type ApiArticleFamilyOption = {
-  id: number
-  name: string
+  article_families_id: number
+  article_families_name: string
 }
 
 export type ArticleFamilySortField = "id" | "name"
@@ -194,9 +187,9 @@ export type ArticleFamiliesQuery = {
   sort_order?: "ASC" | "DESC"
 }
 
-/** `name` est requis à la création. */
+/** `article_families_name` est requis à la création. */
 export type CreateArticleFamilyPayload = {
-  name: string
+  article_families_name: string
 }
 
 export type UpdateArticleFamilyPayload = Partial<CreateArticleFamilyPayload>

@@ -55,6 +55,18 @@
 :root {
   /* Rayons de bordure (non colorimétrique : reste dans ce fichier). */
   --radius: 0.625rem;
+  /* Épaisseur des barres de défilement (non colorimétrique). */
+  --scrollbar-size: 0.75rem;
+  --scrollbar-thumb-inset: 0.1875rem;
+}
+
+/* Masque complètement la barre de défilement (utilisé par la sidebar). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer base {
@@ -66,5 +78,51 @@
   }
   html {
     @apply font-sans;
+  }
+
+  /* ————————————————— Barres de défilement —————————————————
+     Même langage visuel que les surfaces : piste transparente,
+     pouce arrondi discret qui s'accentue au survol. */
+
+  /* Firefox et moteurs sans `::-webkit-scrollbar` : API standard. */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    }
+  }
+
+  /* WebKit / Blink : pouce arrondi avec marge interne. */
+  ::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: var(--scrollbar-thumb-inset) solid transparent;
+    border-radius: 9999px;
+    background-color: var(--scrollbar-thumb);
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  /* Zones de défilement internes (modales, tableaux, menus) : barre plus fine. */
+  [data-slot="dialog-body"]::-webkit-scrollbar,
+  [data-slot="table-container"]::-webkit-scrollbar,
+  [data-slot="select-content"]::-webkit-scrollbar {
+    width: calc(var(--scrollbar-size) - 0.25rem);
+    height: calc(var(--scrollbar-size) - 0.25rem);
   }
 }

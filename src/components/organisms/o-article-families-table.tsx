@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/table"
 import type { ApiArticleFamily } from "@/types/api"
 
-// Tableau des familles d'articles : structure API `{ id, name }`.
+// Tableau des familles d'articles : structure API préfixée
+// (`article_families_id`, `article_families_name`).
 
 const COLUMN_COUNT = 3
 
@@ -77,11 +78,15 @@ export function OArticleFamiliesTable({
             </TableRow>
           ) : (
             families.map((family) => (
-              <TableRow key={family.id}>
+              <TableRow key={family.article_families_id}>
                 <TableCell>
-                  <AtomBadge variant="outline">#{family.id}</AtomBadge>
+                  <AtomBadge variant="outline">
+                    #{family.article_families_id}
+                  </AtomBadge>
                 </TableCell>
-                <TableCell className="font-medium">{family.name}</TableCell>
+                <TableCell className="font-medium">
+                  {family.article_families_name}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
                     <AtomButton

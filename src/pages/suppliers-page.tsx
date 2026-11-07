@@ -215,9 +215,9 @@ export function SuppliersPage() {
     }
 
     // Champs optionnels vidés → `null` pour effacer la valeur existante.
-    // NOTE : `supplier_number` est généré par le backend et n'est jamais envoyé en
-    // modification (le numéro d'un fournisseur existant est immuable).
-    const payload = {
+    // NOTE : `supplier_number` est généré par le backend : il n'est jamais
+    // envoyé, ni à la création ni en modification.
+    const payload: CreateSupplierPayload = {
       suppliers_name: values.suppliers_name.trim(),
       suppliers_civility: values.suppliers_civility,
       suppliers_contact_name: values.suppliers_contact_name.trim() || null,
@@ -228,16 +228,9 @@ export function SuppliersPage() {
 
     setSaving(true)
     try {
-      // Le numéro reste optionnel à la création (sinon généré par le backend).
-      const createPayload: CreateSupplierPayload & {
-        supplier_number?: string
-      } = {
-        ...payload,
-        supplier_number: values.supplier_number.trim() || undefined,
-      }
       const { envelope } = editing
         ? await supplierService.updateSupplier(editing.supplier_id, payload)
-        : await supplierService.createSupplier(createPayload)
+        : await supplierService.createSupplier(payload)
       toast.success(envelope.message)
       closeForm()
       // Tri par défaut sur created_at DESC : un nouveau fournisseur apparaît
@@ -356,7 +349,6 @@ export function SuppliersPage() {
               <MSupplierForm
                 formId={SUPPLIER_FORM_ID}
                 showActions={false}
-                lockSupplierNumber={editing !== null}
                 values={values}
                 errors={formErrors}
                 submitting={saving}

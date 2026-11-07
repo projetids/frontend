@@ -40,11 +40,13 @@ export function MArticleFamilyDetails({ family }: MArticleFamilyDetailsProps) {
           <FolderTree className="size-6" />
         </div>
         <div className="flex min-w-0 flex-col gap-1.5">
-          <p className="truncate text-base font-semibold">{family.name}</p>
+          <p className="truncate text-base font-semibold">
+            {family.article_families_name}
+          </p>
           <div className="flex flex-wrap items-center gap-2">
             <AtomBadge variant="outline">
               <Hash className="size-3" />
-              {family.id}
+              {family.article_families_id}
             </AtomBadge>
             <AtomBadge variant="secondary">Famille d'articles</AtomBadge>
           </div>
@@ -52,8 +54,16 @@ export function MArticleFamilyDetails({ family }: MArticleFamilyDetailsProps) {
       </div>
 
       <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-        <DetailRow icon={Hash} label="Identifiant" value={String(family.id)} />
-        <DetailRow icon={Tag} label="Nom" value={family.name} />
+        <DetailRow
+          icon={Hash}
+          label="Identifiant"
+          value={String(family.article_families_id)}
+        />
+        <DetailRow
+          icon={Tag}
+          label="Nom"
+          value={family.article_families_name}
+        />
       </dl>
 
       <p className="border-t pt-4 text-xs text-muted-foreground">

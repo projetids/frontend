@@ -6,8 +6,9 @@ import { MField } from "./m-field"
 import { MSelectField } from "./m-select-field"
 
 // Formulaire fournisseur (création et modification). Les règles reprennent le
-// DTO de l'API : `numero` et `name` requis, `civility` parmi Mr / Mme / Mdlle,
-// e-mail et téléphone optionnels mais validés si renseignés.
+// DTO de l'API : `name` requis, `civility` parmi Mr / Mme / Mdlle, e-mail et
+// téléphone optionnels mais validés si renseignés. Le numéro est généré par le
+// backend : il reste toujours en lecture seule (création comme modification).
 
 export type MSupplierFormValues = {
   supplier_number: string
@@ -45,8 +46,6 @@ export type MSupplierFormProps = {
   formId?: string
   /** Masque la barre d'actions interne (utile dans une modal à pied de page). */
   showActions?: boolean
-  /** Verrouille le numéro (généré par le backend, non modifiable en édition). */
-  lockSupplierNumber?: boolean
 }
 
 export function MSupplierForm({
@@ -59,7 +58,6 @@ export function MSupplierForm({
   onCancel,
   formId,
   showActions = true,
-  lockSupplierNumber = false,
 }: MSupplierFormProps) {
   const addressId = useId()
 
@@ -86,12 +84,9 @@ export function MSupplierForm({
             id="supplierNumber"
             value={values.supplier_number}
             error={errors.supplier_number}
-            onChange={(event) =>
-              onChange({ supplier_number: event.target.value })
-            }
+            placeholder="Généré automatiquement"
             autoComplete="off"
-            disabled={submitting || lockSupplierNumber}
-            required
+            disabled
           />
           <MField
             label="Nom du fournisseur"

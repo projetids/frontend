@@ -50,7 +50,7 @@ const ARTICLE_FAMILY_FORM_ID = "article-family-form"
 
 /** Convertit une famille API en valeurs de formulaire. */
 function toFormValues(family: ApiArticleFamily): MArticleFamilyFormValues {
-  return { name: family.name }
+  return { article_families_name: family.article_families_name }
 }
 
 export function ArticleFamiliesPage() {
@@ -140,8 +140,9 @@ export function ArticleFamiliesPage() {
     setFormOpen(true)
   }
 
-  // Le tableau ne renvoie que `{ id, name }` : on recharge malgré tout la fiche
-  // par son `id` pour rester aligné sur le flux d'édition des autres modules.
+  // Le tableau renvoie les colonnes préfixées : on recharge malgré tout la fiche
+  // par son `article_families_id` pour rester aligné sur le flux d'édition des
+  // autres modules.
   async function openEdit(family: ApiArticleFamily) {
     const requestId = ++detailRequestRef.current
     setEditing(family)
@@ -152,7 +153,7 @@ export function ArticleFamiliesPage() {
 
     try {
       const { family: fresh } = await articleFamilyService.getArticleFamily(
-        family.id
+        family.article_families_id
       )
       if (requestId !== detailRequestRef.current) return
       setEditing(fresh)
@@ -185,7 +186,8 @@ export function ArticleFamiliesPage() {
 
   function validateForm(): MArticleFamilyFormErrors {
     const errors: MArticleFamilyFormErrors = {}
-    if (!values.name.trim()) errors.name = "Le nom de la famille est requis."
+    if (!values.article_families_name.trim())
+      errors.article_families_name = "Le nom de la famille est requis."
     return errors
   }
 
@@ -199,21 +201,29 @@ export function ArticleFamiliesPage() {
       return
     }
 
-    const payload = { name: values.name.trim() }
+    const payload = {
+      article_families_name: values.article_families_name.trim(),
+    }
 
     setSaving(true)
     try {
       const { envelope } = editing
-        ? await articleFamilyService.updateArticleFamily(editing.id, payload)
+        ? await articleFamilyService.updateArticleFamily(
+            editing.article_families_id,
+            payload
+          )
         : await articleFamilyService.createArticleFamily(payload)
       toast.success(envelope.message)
       closeForm()
-      // Tri par défaut sur `id` ASC : on revient en tête de liste après création.
+      // Tri par défaut sur l'identifiant ASC : on revient en tête de liste après
+      // création.
       if (!editing) setPage(1)
       reload()
     } catch (err) {
       if (err instanceof ApiError && err.code === "CONFLICT") {
-        setFormErrors({ name: "Cette famille d'articles existe déjà." })
+        setFormErrors({
+          article_families_name: "Cette famille d'articles existe déjà.",
+        })
         toast.error("Enregistrement refusé", {
           description: "Une famille d'articles porte déjà ce nom.",
         })
@@ -238,7 +248,7 @@ export function ArticleFamiliesPage() {
     setDeleting(true)
     try {
       const { envelope } = await articleFamilyService.deleteArticleFamily(
-        toDelete.id
+        toDelete.article_families_id
       )
       toast.success(envelope.message)
       setToDelete(null)
@@ -264,7 +274,7 @@ export function ArticleFamiliesPage() {
         onOpenChange={(open) => {
           if (!open) setToDelete(null)
         }}
-        title={`Supprimer ${toDelete?.name ?? "cette famille"} ?`}
+        title={`Supprimer ${toDelete?.article_families_name ?? "cette famille"} ?`}
         description="La famille sera supprimée définitivement. Cette action est irréversible."
         confirmLabel="Supprimer"
         destructive
@@ -312,7 +322,7 @@ export function ArticleFamiliesPage() {
               </DialogTitle>
               <DialogDescription>
                 {editing
-                  ? `Mettez à jour le nom de ${editing.name}.`
+                  ? `Mettez à jour le nom de ${editing.article_families_name}.`
                   : "Renseignez le nom de la famille à ajouter au catalogue."}
               </DialogDescription>
             </div>
