@@ -45,6 +45,8 @@ export type MSupplierFormProps = {
   formId?: string
   /** Masque la barre d'actions interne (utile dans une modal à pied de page). */
   showActions?: boolean
+  /** Verrouille le numéro (généré par le backend, non modifiable en édition). */
+  lockSupplierNumber?: boolean
 }
 
 export function MSupplierForm({
@@ -57,6 +59,7 @@ export function MSupplierForm({
   onCancel,
   formId,
   showActions = true,
+  lockSupplierNumber = false,
 }: MSupplierFormProps) {
   const addressId = useId()
 
@@ -87,7 +90,7 @@ export function MSupplierForm({
               onChange({ supplier_number: event.target.value })
             }
             autoComplete="off"
-            disabled={submitting}
+            disabled={submitting || lockSupplierNumber}
             required
           />
           <MField

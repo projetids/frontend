@@ -1,67 +1,22 @@
-# Guide d'intégration Frontend — Fournisseurs (IDS API)
+# Fournisseurs API (IDS)
 
-> Module **Gestion de Fournisseurs** (`suppliers`). Attributs JSON/DB en **anglais, snake_case**. Textes Swagger/exemples en français.
+> Module : `/suppliers` — Gestion des fournisseurs (civility, numéro, nom, contact, adresse, téléphone, email).
+> Rôles : `superadmin` (tous les fournisseurs), `admin` (limités à leur point de vente).
 
-## 1. Base
+## 1. Base URL
 
-- URL : `http://localhost:5000/api/v1`
-- Préfixe module : `/suppliers` (route complète : `/api/v1/suppliers`)
-- Auth : `Authorization: Bearer <access_token>` (toutes les routes)
-- Rôles : `admin`, `superadmin` (voir §4). `cashier` → `403 FORBIDDEN`.
-- Réponses : enveloppe IDS `{ data, message, status, error, meta?, signature: "IDS" }` (cf. `docs/auth/integration.md`).
-- Swagger : `GET /docs` (tag `Fournisseurs`).
-
-## 2. Modèle de données (`suppliers`)
-
-| Attribut | Type | Requis | Contraintes / notes |
-|---|---|---:|---|
-| `supplier_id` | uuid | — | PK, généré |
-| `supplier_number` | string | — | **généré par le backend**, unique, norme `SUP-<12 hex MAJ>` (ex. `SUP-A1B2C3D4E5F6`) |
-| `suppliers_name` | string | oui | nom du fournisseur |
-| `suppliers_civility` | enum | oui | `Mr` \| `Mme` \| `Mdlle` (valeurs exactes) |
-| `suppliers_contact_name` | string \| null | non | nom du contact |
-| `suppliers_address` | string (text) \| null | non | adresse |
-| `suppliers_telephone` | string \| null | non | téléphone |
-| `suppliers_email` | string \| null | non | e-mail valide si fourni |
-| `point_of_sale_id` | uuid \| null | non | scoping (§4) |
-| `created_at` | datetime | — | auto |
-| `updated_at` | datetime | — | auto |
-
-## 3. Endpoints
-
-### 3.1 POST `/suppliers` — Créer
-
-Body `CreateSupplierDto` (**ne pas envoyer `supplier_number`**, généré côté backend) :
-
-```json
-{
-  "suppliers_name": "ACME Distribution",
-  "suppliers_civility": "Mr",
-  "suppliers_contact_name": "Jean Martin",
-  "suppliers_address": "12 Rue des Fleurs, Abidjan",
-  "suppliers_telephone": "+2250700000000",
-  "suppliers_email": "contact@acme.example",
-  "point_of_sale_id": "c0a8012e-1234-5678-9abc-def012345678"
-}
+```text
+http://localhost:3000/api/v1/suppliers
 ```
 
-Réponse `201` :
+## 2. Enveloppe de réponse
 
+Toute réponse suit le format uniforme (voir `docs/auth.md` §2) : `data` en succès, `error` en échec.
+
+**Succès (200/201)** :
 ```json
 {
-  "data": {
-    "supplier_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "supplier_number": "SUP-A1B2C3D4E5F6",
-    "suppliers_name": "ACME Distribution",
-    "suppliers_civility": "Mr",
-    "suppliers_contact_name": "Jean Martin",
-    "suppliers_address": "12 Rue des Fleurs, Abidjan",
-    "suppliers_telephone": "+2250700000000",
-    "suppliers_email": "contact@acme.example",
-    "point_of_sale_id": "c0a8012e-1234-5678-9abc-def012345678",
-    "created_at": "2026-11-06T23:00:00.000Z",
-    "updated_at": "2026-11-06T23:00:00.000Z"
-  },
+  "data": { /* ApiSupplier */ },
   "message": "Fournisseur créé",
   "status": 201,
   "error": null,
@@ -69,107 +24,198 @@ Réponse `201` :
 }
 ```
 
-Erreurs :
-- `400 BAD_REQUEST` — validation (ex. `suppliers_civility` hors enum, `suppliers_email` invalide, `point_of_sale_id` non-uuid).
-- `409 CONFLICT` — échec exceptionnel de génération d’un `supplier_number` unique (réessayer).
-- `401 UNAUTHORIZED` / `403 FORBIDDEN`.
+**Erreur** :
+```json
+{
+  "data": null,
+  "message": "Identifiants invalides",
+  "status": 400,
+  "error": { "code": "BAD_REQUEST" },
+  "signature": "IDS"
+}
+```
 
-> `point_of_sale_id` dans le body est **ignoré pour un admin** (forcé à son PO, §4). Un `superadmin` peut le fournir ou laisser `null`.
+## 3. Endpoints
 
-### 3.2 GET `/suppliers` — Lister (paginé)
+### 3.1 GET `/suppliers` (admin, superadmin)
 
-Query `ListSuppliersDto` :
+Liste paginée + filtres tri.
 
-| Param | Type | Défaut | Notes |
-|---|---|---:|---|
-| `page` | int ≥ 1 | `1` | |
-| `limit` | int 1–100 | `20` | |
-| `search` | string | — | ILIKE sur `supplier_number`, `suppliers_name`, `suppliers_contact_name`, `suppliers_email`, `suppliers_telephone` |
-| `sort_by` | enum | `created_at` | `supplier_number` \| `suppliers_name` \| `suppliers_contact_name` \| `suppliers_email` \| `created_at` |
-| `sort_order` | enum | `DESC` | `ASC` \| `DESC` |
+**Query params** :
 
-Exemple : `GET /api/v1/suppliers?page=1&limit=20&search=ACME&sort_by=suppliers_name&sort_order=ASC`
+| Param | Type | Défaut | Description |
+|---|---|---|---|
+| `page` | int ≥ 1 | 1 | page courante |
+| `limit` | int 1–100 | 10 | éléments par page |
+| `search` | string | — | ILIKE sur `numero`, `name`, `contact_name`, `email`, `telephone` |
+| `sort_by` | enum | `created_at` | `numero`, `name`, `contact_name`, `email`, `created_at` |
+| `sort_order` | enum | `DESC` | `ASC`, `DESC` |
 
-Réponse `200` :
+**Réponse 200** (enveloppe avec `meta` rempli) :
 
 ```json
 {
-  "data": [ { "supplier_id": "...", "supplier_number": "SUP-A1B2C3D4E5F6", "suppliers_name": "ACME Distribution", "...": "..." } ],
+  "data": [ /* ApiSupplier[] */ ],
   "message": "Liste des fournisseurs",
   "status": 200,
-  "meta": { "page": 1, "limit": 20, "total": 1 },
+  "meta": { "page": 1, "limit": 10, "total": 23 },
   "error": null,
   "signature": "IDS"
 }
 ```
 
-### 3.3 GET `/suppliers/:id` — Détail
+**Erreurs** : `401` (non authentifié), `403` (rôle requis : admin ou superadmin).
 
-`:id` = `supplier_id` (uuid). Réponse `200` : `data` = fournisseur, `message` = `Fournisseur récupéré`.  
-`404 NOT_FOUND` si introuvable **ou hors scope PO** de l’admin.
+---
 
-### 3.4 PATCH `/suppliers/:id` — Mettre à jour
+### 3.2 GET `/suppliers/:id` (admin, superadmin)
 
-Body `UpdateSupplierDto` (champs métier optionnels ; `supplier_number` **non modifiable**) :
+Fiche d'un fournisseur par identifiant.
+
+**Réponse 200** :
 
 ```json
 {
-  "suppliers_name": "ACME Distribution CI",
-  "suppliers_telephone": "+2250700001111",
-  "suppliers_civility": "Mme"
+  "data": { /* ApiSupplier */ },
+  "message": "Fournisseur récupéré",
+  "status": 200,
+  "error": null,
+  "signature": "IDS"
 }
 ```
 
-Réponse `200` : fournisseur mis à jour, `message` = `Fournisseur mis à jour`.  
-Erreurs : `404` (introuvable/hors scope), `400` (validation).
+**Erreurs** : `404` (introuvable), `403` (hors périmètre point de vente).
 
-### 3.5 DELETE `/suppliers/:id` — Supprimer
+---
 
-Réponse `200` :
+### 3.3 POST `/suppliers` (admin, superadmin)
+
+Crée un fournisseur.
+
+**Body** (`CreateSupplierPayload`) :
 
 ```json
-{ "data": { "supplier_id": "3fa85f64-..." }, "message": "Fournisseur supprimé", "status": 200, "error": null, "signature": "IDS" }
+{
+  "numero": "FOU-001",
+  "name": "ACME Distribution",
+  "civility": "Mr",        // Mr / Mme / Mdlle
+  "contact_name": "Jean Martin",
+  "address": "12 Rue des Fleurs, Abidjan",
+  "telephone": "+2250700000000",
+  "email": "contact@acme.example",
+  "point_of_sale_id": "<uuid>"   // optionnel, superadmin peut omettre
+}
 ```
 
-`404` si introuvable/hors scope.
-
-## 4. Scoping & permissions
-
-- `admin` : accès limité à son `point_of_sale_id` (JWT/profil). Création force `point_of_sale_id` = PO de l’admin ; list/detail/update/delete filtrés par ce PO.
-- `superadmin` : non scopé (voit/modifie tous les PO) ; peut définir `point_of_sale_id` à la création.
-- `cashier` : aucun accès (`403`).
-
-> Si un admin reçoit des `404` inattendus, vérifier que le fournisseur appartient à son point de vente.
-
-## 5. Règles métier / validation
-
-- `supplier_number` : généré par le backend (norme `SUP-<12 hex MAJ>`), unique (contrainte DB `UQ_suppliers_supplier_number`). Non fourni en création, non modifiable.
-- `suppliers_civility` : valeurs exactes `Mr`, `Mme`, `Mdlle`.
-- `suppliers_email` : format e-mail si présent.
-- Champs optionnels acceptent l’omission ; envoyer `null` pour `point_of_sale_id` (superadmin) si non rattaché.
-- Recherche `search` insensible à la casse (ILIKE, `%term%`).
-
-## 6. Migration
-
-`src/database/migrations/1750000000000-CreateSuppliers.ts` — crée l’enum `suppliers_civility_enum`, la table `suppliers` (unique `supplier_number`, index `point_of_sale_id`). Appliquer : `npm run migration:run`.
-
-## 7. Exemples front (fetch)
-
-```ts
-const BASE = 'http://localhost:5000/api/v1';
-const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
-
-// list
-const list = await fetch(`${BASE}/suppliers?page=1&limit=20&search=ACME`, { headers }).then(r => r.json());
-
-// create (supplier_number généré par le backend)
-const created = await fetch(`${BASE}/suppliers`, {
-  method: 'POST', headers,
-  body: JSON.stringify({ suppliers_name: 'ACME Distribution', suppliers_civility: 'Mr' }),
-}).then(r => r.json());
-
-// update
-await fetch(`${BASE}/suppliers/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ suppliers_telephone: '+2250700001111' }) });
+**Succès (201)** :
+```json
+{
+  "data": { /* ApiSupplier créé */ },
+  "message": "Fournisseur créé",
+  "status": 201,
+  "error": null,
+  "signature": "IDS"
+}
 ```
 
-Vérifier `res.status` / `res.error?.code` (`CONFLICT`, `UNAUTHORIZED`, `FORBIDDEN`, `BAD_REQUEST`).
+**Erreurs attendues** : `BAD_REQUEST` (champs invalides), `CONFLICT` (numéro duplicate), `FORBIDDEN` (rôle requis).
+
+---
+
+### 3.4 PATCH `/suppliers/:id` (admin, superadmin)
+
+Met à jour une fiche.
+
+**Body** (`UpdateSupplierPayload` = `Partial<CreateSupplierPayload>`) : seuls les champs fournis sont modifiés.
+
+**Succès (200)** :
+```json
+{
+  "data": { /* ApiSupplier mis à jour */ },
+  "message": "Fournisseur mis à jour",
+  "status": 200,
+  "error": null,
+  "signature": "IDS"
+}
+```
+
+**Erreurs** : `CONFLICT` (numéro en conflit), `404` (introuvable), `403` (hors périmètre).
+
+---
+
+### 3.5 DELETE `/suppliers/:id` (admin, superadmin)
+
+Supprime définitivement un fournisseur.
+
+**Réponse 200** :
+```json
+{
+  "data": { "supplier_id": "<uuid>" },
+  "message": "Fournisseur supprimé",
+  "status": 200,
+  "error": null,
+  "signature": "IDS"
+}
+```
+
+**Erreurs** : `404` (introuvable), `403` (hors périmètre), `409` (encore des références).
+
+---
+
+## 4. Rôles et portée
+
+| Rôle | Portée fournisseurs |
+|---|---|
+| `superadmin` | Tous les fournisseurs (multi-points de vente) |
+| `admin` | Uniquement ceux rattachés à son `point_of_sale_id` |
+
+L'API applique le scope automatique selon le rôle de l'utilisateur connecté.
+
+## 5. Codes d'erreur fréquents
+
+| Code | Signification | Front |
+|---|---|---|
+| `BAD_REQUEST` | Champs invalide ou duplicate | Afficher `error.details` ou `error.message` |
+| `CONFLICT` | Numéro déjà utilisé | `"Ce numéro de fournisseur existe déjà."` |
+| `FORBIDDEN` | Rôle insuffisant | Rediriger vers dashboard ou afficher toast |
+| `404` | Fournisseur introuvable | `"Fournisseur introuvable"` |
+
+## 6. Exemples de payloads
+
+### Création
+
+```json
+{
+  "numero": "FOU-001",
+  "name": "Distributeur Général",
+  "civility": "Mme",
+  "contact_name": "Sophie Leblanc",
+  "address": "45 Avenue Centrale, Dakar",
+  "telephone": "+2250700001111",
+  "email": "s.leblanc@distri.example"
+}
+```
+
+### Mise à jour (PATCH) — seuls les champs fournis sont modifiés :
+
+```json
+{
+  "telephone": "+2250700009999"
+}
+```
+
+---
+
+## 7. Flux type côté front
+
+```mermaid
+flowchart TD
+    A[Liste fournisseurs] -->|CLIC Modifier| B[Ouvrir modal Modifier]
+    A -->|CLIC Supprimer| C[Modal confirmation Supprimer]
+    B -->|Champs + Boutton Enregistrer| D[PATCH /suppliers/:id]
+    C -->|Confirmer| E[DELETE /suppliers/:id]
+    D -->|200| A[Réactualiser liste]
+    E -->|200| A[Réactualiser liste]
+```
+
+> **Note** : Toutes les actions destructives (suppression) et les modifications doivent passer par une modal de confirmation (`MConfirmDialog`) avant l'appel API.

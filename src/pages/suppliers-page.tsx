@@ -35,7 +35,7 @@ import { ApiError } from "@/lib/api-client"
 import { roleLabel } from "@/lib/roles"
 import { validateEmail, validatePhone } from "@/lib/validation"
 import * as supplierService from "@/services/supplier.service"
-import type { ApiSupplier } from "@/types/api"
+import type { ApiSupplier, CreateSupplierPayload } from "@/types/api"
 
 // Gestion des fournisseurs (module API /suppliers) : liste paginée et
 // recherchable dans un tableau, création et modification dans un panneau
@@ -215,9 +215,9 @@ export function SuppliersPage() {
     }
 
     // Champs optionnels vidés → `null` pour effacer la valeur existante.
-    // NOTE : supplier_number est généré par le backend, on ne l'envoie pas.
+    // NOTE : `supplier_number` est généré par le backend et n'est jamais envoyé en
+    // modification (le numéro d'un fournisseur existant est immuable).
     const payload = {
-      supplier_number: values.supplier_number,
       suppliers_name: values.suppliers_name.trim(),
       suppliers_civility: values.suppliers_civility,
       suppliers_contact_name: values.suppliers_contact_name.trim() || null,
@@ -228,9 +228,16 @@ export function SuppliersPage() {
 
     setSaving(true)
     try {
+      // Le numéro reste optionnel à la création (sinon généré par le backend).
+      const createPayload: CreateSupplierPayload & {
+        supplier_number?: string
+      } = {
+        ...payload,
+        supplier_number: values.supplier_number.trim() || undefined,
+      }
       const { envelope } = editing
         ? await supplierService.updateSupplier(editing.supplier_id, payload)
-        : await supplierService.createSupplier(payload)
+        : await supplierService.createSupplier(createPayload)
       toast.success(envelope.message)
       closeForm()
       // Tri par défaut sur created_at DESC : un nouveau fournisseur apparaît
@@ -349,6 +356,7 @@ export function SuppliersPage() {
               <MSupplierForm
                 formId={SUPPLIER_FORM_ID}
                 showActions={false}
+                lockSupplierNumber={editing !== null}
                 values={values}
                 errors={formErrors}
                 submitting={saving}
