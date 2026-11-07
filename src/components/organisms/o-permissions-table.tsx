@@ -89,7 +89,7 @@ export function OPermissionsTable({
                 <TableCell>
                   <AtomBadge variant="outline">{permission.code}</AtomBadge>
                 </TableCell>
-                <TableCell className="max-w-[22rem] font-medium">
+                <TableCell className="max-w-88 font-medium">
                   <span className="line-clamp-2">{permission.label_fr}</span>
                 </TableCell>
                 <TableCell className="text-xs">

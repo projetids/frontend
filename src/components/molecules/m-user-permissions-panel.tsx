@@ -88,7 +88,7 @@ export function MUserPermissionsPanel({
           Aucune permission ne correspond à cette recherche.
         </p>
       ) : (
-        <div className="grid max-h-[26rem] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+        <div className="grid max-h-104 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
           {filtered.map((permission, index) => {
             const checkboxId = `${idPrefix}-${index}`
             const checked = flags[permission.code] ?? permission.default_enabled
