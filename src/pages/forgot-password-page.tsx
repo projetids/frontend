@@ -5,7 +5,7 @@ import { useBackendMessage } from "@/hooks/use-backend-message"
 import { EMAIL_REGEX } from "@/lib/validation"
 import AuthBackgroundShape from "@/assets/svg/auth-background-shape"
 import { AtomButton } from "@/components/atoms"
-import { MConfirmDialog, MField } from "@/components/molecules"
+import { MConfirmDialog, MField, MThemeToggle } from "@/components/molecules"
 import {
   Card,
   CardContent,
@@ -42,7 +42,7 @@ export function ForgotPasswordPage() {
       // afficher un message neutre, sans jamais confirmer l'existence d'un compte.
       notify(
         { message: "Si un compte existe, un e-mail vient d'être envoyé." },
-        message,
+        message
       )
       navigate("/login")
     } catch (err) {
@@ -62,6 +62,9 @@ export function ForgotPasswordPage() {
         confirmLabel="Envoyer le lien"
         onConfirm={() => void handleConfirm()}
       />
+      <div className="absolute top-4 right-4 z-10">
+        <MThemeToggle />
+      </div>
       <div className="absolute">
         <AuthBackgroundShape />
       </div>

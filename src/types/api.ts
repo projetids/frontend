@@ -200,3 +200,55 @@ export type CreateArticleFamilyPayload = {
 }
 
 export type UpdateArticleFamilyPayload = Partial<CreateArticleFamilyPayload>
+
+// ——— Permissions utilisateur (module /permissions) ———
+
+/**
+ * Entrée du catalogue dynamique `permission_catalog`. `code` est la clé
+ * métier (ex. `A01`, `A61`) ; `reserved` et `default_enabled` pilotent les
+ * valeurs proposées par défaut, `is_active` l'application de la permission.
+ */
+export type ApiPermission = {
+  code: string
+  label_fr: string
+  reserved: boolean
+  default_enabled: boolean
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+/** Flags effectifs d'un utilisateur : un booléen pour chaque code du catalogue. */
+export type ApiUserPermissions = {
+  user_id: string
+  flags: Record<string, boolean>
+}
+
+export type PermissionCatalogSortField = "code" | "label_fr" | "created_at"
+
+export type PermissionsCatalogQuery = {
+  search?: string
+  sort_by?: PermissionCatalogSortField
+  sort_order?: "ASC" | "DESC"
+}
+
+/** POST /permissions/catalog — `is_active` démarre à `true` côté API. */
+export type CreatePermissionPayload = {
+  code: string
+  label_fr: string
+  reserved?: boolean
+  default_enabled?: boolean
+}
+
+/** PATCH /permissions/catalog/:code — le code est immuable. */
+export type UpdatePermissionPayload = Partial<{
+  label_fr: string
+  reserved: boolean
+  default_enabled: boolean
+  is_active: boolean
+}>
+
+/** PUT /users/:id/permissions — merge partiel strict (codes connus uniquement). */
+export type UpdateUserPermissionsPayload = {
+  flags: Record<string, boolean>
+}

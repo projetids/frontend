@@ -6,3 +6,7 @@ export {
   OArticleFamiliesTable,
   type OArticleFamiliesTableProps,
 } from "./o-article-families-table"
+export {
+  OPermissionsTable,
+  type OPermissionsTableProps,
+} from "./o-permissions-table"

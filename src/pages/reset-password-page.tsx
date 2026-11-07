@@ -5,7 +5,7 @@ import { useBackendMessage } from "@/hooks/use-backend-message"
 import { validatePassword } from "@/lib/validation"
 import AuthBackgroundShape from "@/assets/svg/auth-background-shape"
 import { AtomButton } from "@/components/atoms"
-import { MConfirmDialog, MField } from "@/components/molecules"
+import { MConfirmDialog, MField, MThemeToggle } from "@/components/molecules"
 import {
   Card,
   CardContent,
@@ -25,7 +25,9 @@ export function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("")
   const [loading, setLoading] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [errors, setErrors] = useState<{ password?: string; confirm?: string }>({})
+  const [errors, setErrors] = useState<{ password?: string; confirm?: string }>(
+    {}
+  )
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -71,6 +73,9 @@ export function ResetPasswordPage() {
         confirmLabel="Réinitialiser"
         onConfirm={() => void handleConfirm()}
       />
+      <div className="absolute top-4 right-4 z-10">
+        <MThemeToggle />
+      </div>
       <div className="absolute">
         <AuthBackgroundShape />
       </div>
@@ -114,7 +119,7 @@ export function ResetPasswordPage() {
             </AtomButton>
           </form>
 
-          <p className="text-muted-foreground mt-4 text-center text-base">
+          <p className="mt-4 text-center text-base text-muted-foreground">
             <Link to="/login" className="text-card-foreground hover:underline">
               Retour à la connexion
             </Link>

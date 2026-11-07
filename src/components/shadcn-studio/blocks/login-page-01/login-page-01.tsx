@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 import Logo from '@/components/shadcn-studio/logo'
+import { MThemeToggle } from '@/components/molecules'
 import AuthBackgroundShape from '@/assets/svg/auth-background-shape'
 import { Link } from 'react-router-dom'
 import LoginForm from '@/components/shadcn-studio/blocks/login-page-01/login-form'
@@ -8,6 +9,9 @@ import LoginForm from '@/components/shadcn-studio/blocks/login-page-01/login-for
 const Login = () => {
   return (
     <div className='relative flex h-auto min-h-screen items-center justify-center overflow-x-hidden px-4 py-10 sm:px-6 lg:px-8'>
+      <div className='absolute top-4 right-4 z-10'>
+        <MThemeToggle />
+      </div>
       <div className='absolute'>
         <AuthBackgroundShape />
       </div>

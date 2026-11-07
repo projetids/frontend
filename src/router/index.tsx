@@ -4,6 +4,7 @@ import {
   HomePage,
   ProfilePage,
   SuppliersPage,
+  UserPermissionsPage,
   ValidationPage,
 } from "@/pages"
 import Login from "@/components/shadcn-studio/blocks/login-page-01/login-page-01"
@@ -54,6 +55,11 @@ export const router = createBrowserRouter([
             path: "/article-families",
             element: <ArticleFamiliesPage />,
             handle: { roles: managementRoles },
+          },
+          {
+            path: "/user-permissions",
+            element: <UserPermissionsPage />,
+            handle: { roles: allRoles },
           },
         ],
       },

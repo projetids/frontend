@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { LogOutIcon, type LucideIcon } from "lucide-react"
 import { AtomIcon } from "@/components/atoms"
+import { MThemeToggle } from "@/components/molecules"
 import { Button } from "@/components/ui/button"
 import type { ApiRole } from "@/types/api"
 import {
@@ -67,18 +68,19 @@ export function TAppSidebar({
 
   const userSummary = user ? (
     <>
-      <span className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
         {initials(user.name)}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{user.name}</p>
-        <p className="text-muted-foreground truncate text-xs">{user.role}</p>
+        <p className="truncate text-xs text-muted-foreground">{user.role}</p>
       </div>
     </>
   ) : null
 
   function isActive(href: string): boolean {
-    if (href === "/dashboard") return pathname === "/" || pathname === "/dashboard"
+    if (href === "/dashboard")
+      return pathname === "/" || pathname === "/dashboard"
     return href === pathname
   }
 
@@ -91,7 +93,7 @@ export function TAppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton size="lg" asChild>
                   <Link to="/dashboard">
-                    <AtomIcon name="layers" className="text-primary size-5" />
+                    <AtomIcon name="layers" className="size-5 text-primary" />
                     <span className="font-medium">{brand}</span>
                   </Link>
                 </SidebarMenuButton>
@@ -118,7 +120,10 @@ export function TAppSidebar({
 
                       return (
                         <SidebarMenuItem key={item.label}>
-                          <SidebarMenuButton asChild isActive={isActive(item.href)}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={isActive(item.href)}
+                          >
                             {item.href.startsWith("/") ? (
                               <Link to={item.href}>{content}</Link>
                             ) : (
@@ -139,7 +144,7 @@ export function TAppSidebar({
               {user?.href ? (
                 <Link
                   to={user.href}
-                  className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors"
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 >
                   {userSummary}
                 </Link>
@@ -164,12 +169,13 @@ export function TAppSidebar({
         </Sidebar>
 
         <div className="flex flex-1 flex-col">
-          <header className="bg-card sticky top-0 z-50 flex h-13.75 items-center justify-between gap-6 border-b px-4 py-2 sm:px-6">
+          <header className="sticky top-0 z-50 flex h-13.75 items-center justify-between gap-6 border-b bg-card px-4 py-2 sm:px-6">
             <SidebarTrigger className="[&_svg]:size-5!" />
+            <MThemeToggle />
           </header>
           <main className="size-full flex-1 px-4 py-6 sm:px-6">{children}</main>
           {footer ? (
-            <footer className="bg-card text-muted-foreground h-10 border-t px-4 text-sm sm:px-6">
+            <footer className="h-10 border-t bg-card px-4 text-sm text-muted-foreground sm:px-6">
               <div className="flex h-full items-center">{footer}</div>
             </footer>
           ) : null}

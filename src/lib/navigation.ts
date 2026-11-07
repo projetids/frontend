@@ -1,6 +1,7 @@
 import {
   ChartNoAxesCombinedIcon,
   FolderTreeIcon,
+  KeyRoundIcon,
   ShieldCheckIcon,
   TruckIcon,
   UserRoundIcon,
@@ -47,10 +48,24 @@ export const appNavigation: TAppSidebarGroup[] = [
         href: "/validation",
         roles: ["superadmin", "admin"],
       },
+      {
+        label: "Permissions",
+        icon: KeyRoundIcon,
+        href: "/user-permissions",
+        roles: ["superadmin", "admin"],
+      },
     ],
   },
   {
     label: "Compte",
-    items: [{ label: "Mon profil", icon: UserRoundIcon, href: "/profile" }],
+    items: [
+      { label: "Mon profil", icon: UserRoundIcon, href: "/profile" },
+      {
+        label: "Mes permissions",
+        icon: KeyRoundIcon,
+        href: "/user-permissions",
+        roles: ["cashier"],
+      },
+    ],
   },
 ]

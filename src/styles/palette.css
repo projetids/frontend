@@ -1,0 +1,129 @@
+/*
+ * ============================================================================
+ *  PALETTE DE COULEURS — source unique de vérité
+ * ============================================================================
+ *
+ *  Toutes les couleurs de l'application (thème clair et thème sombre) sont
+ *  définies ici. Pour changer l'identité visuelle du produit, il suffit de
+ *  modifier les valeurs de ce fichier : les autres fichiers (composants,
+ *  pages, index.css) ne contiennent aucune couleur codée en dur.
+ *
+ *  Les tokens sont exposés à Tailwind dans `src/index.css` via `@theme inline`,
+ *  ce qui permet d'utiliser `bg-primary`, `text-muted-foreground`,
+ *  `border-border`, `bg-sidebar`, etc. dans les composants.
+ *
+ *  Format : `oklch(Luminosité Chroma Teinte)`.
+ *  Repères rapides :
+ *    - Luminosité : 0 (noir) → 1 (blanc)
+ *    - Chroma     : 0 (gris) → ~0.4 (très saturé)
+ *    - Teinte     : angle 0–360°
+ * ============================================================================
+ */
+
+/* ——————————————————————————— Thème clair ——————————————————————————— */
+:root {
+  /* Fond & texte */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+
+  /* Surfaces (cartes, menus) */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+
+  /* Couleur principale (actions, accents forts) */
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+
+  /* Couleur secondaire */
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+
+  /* Texte discret & surfaces atténuées */
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+
+  /* Survol / mise en avant */
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+
+  /* Actions destructives (suppression, erreur) */
+  --destructive: oklch(0.577 0.245 27.325);
+
+  /* Bordures, champs et anneau de focus */
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+
+  /* Graphiques */
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+
+  /* Barre latérale */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* ——————————————————————————— Thème sombre ——————————————————————————— */
+.dark {
+  /* Fond & texte */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+
+  /* Surfaces (cartes, menus) */
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+
+  /* Couleur principale (actions, accents forts) */
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+
+  /* Couleur secondaire */
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+
+  /* Texte discret & surfaces atténuées */
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+
+  /* Survol / mise en avant */
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+
+  /* Actions destructives (suppression, erreur) */
+  --destructive: oklch(0.704 0.191 22.216);
+
+  /* Bordures, champs et anneau de focus */
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+
+  /* Graphiques */
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+
+  /* Barre latérale */
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
