@@ -169,3 +169,34 @@ export type CreateSupplierPayload = {
 export type UpdateSupplierPayload = Partial<
   CreateSupplierPayload & { supplier_number?: string }
 >
+
+// ——— Familles d'articles (module /article-families) ———
+
+/** Famille d'articles renvoyée par l'API. `id` est un entier auto-généré. */
+export type ApiArticleFamily = {
+  id: number
+  name: string
+}
+
+/** Entrée légère de `GET /article-families/select` (id + nom). */
+export type ApiArticleFamilyOption = {
+  id: number
+  name: string
+}
+
+export type ArticleFamilySortField = "id" | "name"
+
+export type ArticleFamiliesQuery = {
+  page?: number
+  limit?: number
+  search?: string
+  sort_by?: ArticleFamilySortField
+  sort_order?: "ASC" | "DESC"
+}
+
+/** `name` est requis à la création. */
+export type CreateArticleFamilyPayload = {
+  name: string
+}
+
+export type UpdateArticleFamilyPayload = Partial<CreateArticleFamilyPayload>

@@ -1,5 +1,6 @@
 import {
   ChartNoAxesCombinedIcon,
+  FolderTreeIcon,
   ShieldCheckIcon,
   TruckIcon,
   UserRoundIcon,
@@ -27,6 +28,12 @@ export const appNavigation: TAppSidebarGroup[] = [
         label: "Fournisseurs",
         icon: TruckIcon,
         href: "/suppliers",
+        roles: ["superadmin", "admin"],
+      },
+      {
+        label: "Familles d'articles",
+        icon: FolderTreeIcon,
+        href: "/article-families",
         roles: ["superadmin", "admin"],
       },
     ],

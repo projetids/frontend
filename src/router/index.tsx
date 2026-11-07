@@ -1,5 +1,11 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom"
-import { HomePage, ProfilePage, SuppliersPage, ValidationPage } from "@/pages"
+import {
+  ArticleFamiliesPage,
+  HomePage,
+  ProfilePage,
+  SuppliersPage,
+  ValidationPage,
+} from "@/pages"
 import Login from "@/components/shadcn-studio/blocks/login-page-01/login-page-01"
 import Register from "@/components/shadcn-studio/blocks/register-page-01/register-page-01"
 import { ForgotPasswordPage, ResetPasswordPage } from "@/pages"
@@ -42,6 +48,11 @@ export const router = createBrowserRouter([
           {
             path: "/suppliers",
             element: <SuppliersPage />,
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/article-families",
+            element: <ArticleFamiliesPage />,
             handle: { roles: managementRoles },
           },
         ],
