@@ -22,3 +22,18 @@ export function statusLabel(status?: string): string {
   if (!status) return "—"
   return STATUS_LABELS[status as ApiUserStatus] ?? status
 }
+
+/** Variante de badge associée à chaque statut de compte. */
+export function statusBadgeVariant(
+  status: ApiUserStatus
+): "default" | "secondary" | "outline" | "destructive" {
+  switch (status) {
+    case "active":
+      return "default"
+    case "rejected":
+      return "destructive"
+    case "pending":
+    default:
+      return "outline"
+  }
+}

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
-import { MConfirmDialog, MField } from "@/components/molecules"
+import { MConfirmDialog, MField, MProfileDetails } from "@/components/molecules"
 import {
   Card,
   CardContent,
@@ -11,26 +11,27 @@ import {
 } from "@/components/ui/card"
 import { useAuth } from "@/context/auth-context"
 import { ApiError } from "@/lib/api-client"
-import { roleLabel } from "@/lib/roles"
-import { validateEmail, validatePassword, validatePhone } from "@/lib/validation"
+import { roleLabel, statusBadgeVariant, statusLabel } from "@/lib/roles"
+import {
+  validateEmail,
+  validatePassword,
+  validatePhone,
+} from "@/lib/validation"
 import * as authService from "@/services/auth.service"
 
 // Page profil accessible à tous les rôles (superadmin, admin, caissier) :
 // lecture et mise à jour des informations personnelles, changement du mot de
-// passe confirmé par une modal. Le rôle n'est pas modifiable ici (API admin).
+// passe confirmé par une modal, et rappel de toutes les métadonnées du compte
+// renvoyées par `GET /auth/profile`. Le rôle n'est pas modifiable ici.
 
 type ProfileErrors = Partial<{ name: string; mail: string; phone: string }>
 type PasswordErrors = Partial<{ password: string; confirm: string }>
 
-function formatDate(value?: string): string {
-  if (!value) return "—"
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "—"
-  return date.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  })
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "?"
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
 }
 
 export function ProfilePage() {
@@ -42,7 +43,10 @@ export function ProfilePage() {
   })
   const [profileErrors, setProfileErrors] = useState<ProfileErrors>({})
   const [savingProfile, setSavingProfile] = useState(false)
-  const [passwordForm, setPasswordForm] = useState({ password: "", confirm: "" })
+  const [passwordForm, setPasswordForm] = useState({
+    password: "",
+    confirm: "",
+  })
   const [passwordErrors, setPasswordErrors] = useState<PasswordErrors>({})
   const [savingPassword, setSavingPassword] = useState(false)
   const [confirmPassword, setConfirmPassword] = useState(false)
@@ -89,7 +93,9 @@ export function ProfilePage() {
       } else {
         toast.error("Mise à jour impossible", {
           description:
-            err instanceof ApiError ? err.details || err.message : "Erreur inattendue",
+            err instanceof ApiError
+              ? err.details || err.message
+              : "Erreur inattendue",
         })
       }
     } finally {
@@ -127,15 +133,19 @@ export function ProfilePage() {
     } catch (err) {
       toast.error("Changement impossible", {
         description:
-          err instanceof ApiError ? err.details || err.message : "Erreur inattendue",
+          err instanceof ApiError
+            ? err.details || err.message
+            : "Erreur inattendue",
       })
     } finally {
       setSavingPassword(false)
     }
   }
 
+  const displayName = user?.user_name ?? "Mon profil"
+
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       <MConfirmDialog
         open={confirmPassword}
         onOpenChange={setConfirmPassword}
@@ -145,152 +155,182 @@ export function ProfilePage() {
         onConfirm={() => void handlePasswordConfirm()}
       />
 
-      <header className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <AtomBadge variant="outline">Compte</AtomBadge>
-          {user ? (
-            <AtomBadge variant="secondary">{roleLabel(user.role)}</AtomBadge>
-          ) : null}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-lg font-semibold text-primary">
+            {initials(displayName)}
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">
+              Mon profil
+            </h1>
+            <p className="truncate text-sm text-muted-foreground">
+              {user
+                ? `${user.user_name} · ${user.user_mail}`
+                : "Consultez et mettez à jour les informations de votre compte IDS."}
+            </p>
+          </div>
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight">Mon profil</h1>
-        <p className="text-muted-foreground">
-          Consultez et mettez à jour les informations de votre compte IDS.
-          Chaque rôle dispose de son propre profil.
-        </p>
+        {user ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <AtomBadge variant="secondary">{roleLabel(user.role)}</AtomBadge>
+            {user.user_status ? (
+              <AtomBadge variant={statusBadgeVariant(user.user_status)}>
+                {statusLabel(user.user_status)}
+              </AtomBadge>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Informations personnelles</CardTitle>
-          <CardDescription>
-            Votre nom, votre adresse e-mail et votre numéro de téléphone.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <form onSubmit={handleProfileSubmit} className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <MField
-                label="Nom complet"
-                id="profileName"
-                value={profileForm.name}
-                error={profileErrors.name}
-                onChange={(event) =>
-                  setProfileForm((prev) => ({ ...prev, name: event.target.value }))
-                }
-                autoComplete="name"
-                disabled={savingProfile}
-                required
-              />
-              <MField
-                label="Adresse e-mail"
-                type="email"
-                id="profileMail"
-                value={profileForm.mail}
-                error={profileErrors.mail}
-                onChange={(event) =>
-                  setProfileForm((prev) => ({ ...prev, mail: event.target.value }))
-                }
-                autoComplete="email"
-                disabled={savingProfile}
-                required
-              />
-              <MField
-                label="Téléphone"
-                id="profilePhone"
-                value={profileForm.phone}
-                error={profileErrors.phone}
-                description="Optionnel — utilisé pour vous contacter."
-                onChange={(event) =>
-                  setProfileForm((prev) => ({ ...prev, phone: event.target.value }))
-                }
-                autoComplete="tel"
-                disabled={savingProfile}
-              />
-            </div>
+      <div className="grid items-start gap-6 lg:grid-cols-5">
+        <div className="flex flex-col gap-6 lg:col-span-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informations personnelles</CardTitle>
+              <CardDescription>
+                Votre nom, votre adresse e-mail et votre numéro de téléphone.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleProfileSubmit} className="grid gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <MField
+                    label="Nom complet"
+                    id="profileName"
+                    value={profileForm.name}
+                    error={profileErrors.name}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({
+                        ...prev,
+                        name: event.target.value,
+                      }))
+                    }
+                    autoComplete="name"
+                    disabled={savingProfile}
+                    required
+                  />
+                  <MField
+                    label="Adresse e-mail"
+                    type="email"
+                    id="profileMail"
+                    value={profileForm.mail}
+                    error={profileErrors.mail}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({
+                        ...prev,
+                        mail: event.target.value,
+                      }))
+                    }
+                    autoComplete="email"
+                    disabled={savingProfile}
+                    required
+                  />
+                  <MField
+                    label="Téléphone"
+                    id="profilePhone"
+                    value={profileForm.phone}
+                    error={profileErrors.phone}
+                    description="Optionnel — utilisé pour vous contacter."
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({
+                        ...prev,
+                        phone: event.target.value,
+                      }))
+                    }
+                    autoComplete="tel"
+                    disabled={savingProfile}
+                  />
+                </div>
 
-            <dl className="text-muted-foreground flex flex-wrap gap-x-8 gap-y-2 text-xs">
-              <div className="flex gap-1">
-                <dt>Rôle :</dt>
-                <dd className="text-foreground font-medium">
-                  {user ? roleLabel(user.role) : "—"}
-                </dd>
-              </div>
-              <div className="flex gap-1">
-                <dt>Compte créé le :</dt>
-                <dd className="text-foreground font-medium">
-                  {formatDate(user?.created_at)}
-                </dd>
-              </div>
-            </dl>
+                <div>
+                  <AtomButton type="submit" disabled={savingProfile}>
+                    {savingProfile
+                      ? "Enregistrement…"
+                      : "Enregistrer les modifications"}
+                  </AtomButton>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
 
-            <div>
-              <AtomButton type="submit" disabled={savingProfile}>
-                {savingProfile
-                  ? "Enregistrement…"
-                  : "Enregistrer les modifications"}
-              </AtomButton>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Mot de passe</CardTitle>
+              <CardDescription>
+                Choisissez un mot de passe d&apos;au moins 8 caractères, avec
+                majuscule, minuscule, chiffre et caractère spécial.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePasswordSubmit} className="grid gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <MField
+                    label="Nouveau mot de passe"
+                    type="password"
+                    id="profilePassword"
+                    value={passwordForm.password}
+                    error={passwordErrors.password}
+                    onChange={(event) =>
+                      setPasswordForm((prev) => ({
+                        ...prev,
+                        password: event.target.value,
+                      }))
+                    }
+                    autoComplete="new-password"
+                    disabled={savingPassword}
+                    required
+                  />
+                  <MField
+                    label="Confirmer le mot de passe"
+                    type="password"
+                    id="profilePasswordConfirm"
+                    value={passwordForm.confirm}
+                    error={passwordErrors.confirm}
+                    onChange={(event) =>
+                      setPasswordForm((prev) => ({
+                        ...prev,
+                        confirm: event.target.value,
+                      }))
+                    }
+                    autoComplete="new-password"
+                    disabled={savingPassword}
+                    required
+                  />
+                </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Mot de passe</CardTitle>
-          <CardDescription>
-            Choisissez un mot de passe d&apos;au moins 8 caractères, avec
-            majuscule, minuscule, chiffre et caractère spécial.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handlePasswordSubmit} className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <MField
-                label="Nouveau mot de passe"
-                type="password"
-                id="profilePassword"
-                value={passwordForm.password}
-                error={passwordErrors.password}
-                onChange={(event) =>
-                  setPasswordForm((prev) => ({
-                    ...prev,
-                    password: event.target.value,
-                  }))
-                }
-                autoComplete="new-password"
-                disabled={savingPassword}
-                required
-              />
-              <MField
-                label="Confirmer le mot de passe"
-                type="password"
-                id="profilePasswordConfirm"
-                value={passwordForm.confirm}
-                error={passwordErrors.confirm}
-                onChange={(event) =>
-                  setPasswordForm((prev) => ({
-                    ...prev,
-                    confirm: event.target.value,
-                  }))
-                }
-                autoComplete="new-password"
-                disabled={savingPassword}
-                required
-              />
-            </div>
+                <div>
+                  <AtomButton
+                    type="submit"
+                    variant="outline"
+                    disabled={savingPassword}
+                  >
+                    {savingPassword
+                      ? "Mise à jour…"
+                      : "Changer le mot de passe"}
+                  </AtomButton>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
 
-            <div>
-              <AtomButton
-                type="submit"
-                variant="outline"
-                disabled={savingPassword}
-              >
-                {savingPassword ? "Mise à jour…" : "Changer le mot de passe"}
-              </AtomButton>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+        <Card className="lg:sticky lg:top-6 lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Détails du compte</CardTitle>
+            <CardDescription>
+              Métadonnées renvoyées par le serveur — non modifiables.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {user ? (
+              <MProfileDetails user={user} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Chargement…</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

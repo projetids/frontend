@@ -47,3 +47,4 @@ export {
   MUserPermissionsPanel,
   type MUserPermissionsPanelProps,
 } from "./m-user-permissions-panel"
+export { MProfileDetails, type MProfileDetailsProps } from "./m-profile-details"
