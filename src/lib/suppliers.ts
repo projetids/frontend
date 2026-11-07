@@ -32,7 +32,7 @@ export function formatSupplierDate(value?: string): string {
 
 /** Nom affichable : « ACME Distribution · Jean Martin » si un contact existe. */
 export function supplierDisplayName(supplier: ApiSupplier): string {
-  return supplier.contact_name
-    ? `${supplier.name} · ${supplier.contact_name}`
-    : supplier.name
+  return supplier.suppliers_contact_name
+    ? `${supplier.suppliers_name} · ${supplier.suppliers_contact_name}`
+    : supplier.suppliers_name
 }

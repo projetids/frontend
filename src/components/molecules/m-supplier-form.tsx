@@ -41,6 +41,10 @@ export type MSupplierFormProps = {
   onChange: (patch: Partial<MSupplierFormValues>) => void
   onSubmit: () => void
   onCancel: () => void
+  /** Identifiant du `<form>` : permet à des boutons externes de le soumettre. */
+  formId?: string
+  /** Masque la barre d'actions interne (utile dans une modal à pied de page). */
+  showActions?: boolean
 }
 
 export function MSupplierForm({
@@ -51,107 +55,146 @@ export function MSupplierForm({
   onChange,
   onSubmit,
   onCancel,
+  formId,
+  showActions = true,
 }: MSupplierFormProps) {
   const addressId = useId()
 
   return (
     <form
-      className="grid gap-4"
+      id={formId}
+      className="grid gap-6"
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
         onSubmit()
       }}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <MField
-          label="Numéro"
-          id="supplierNumber"
-          value={values.supplier_number}
-          error={errors.supplier_number}
-          onChange={(event) => onChange({ supplier_number: event.target.value })}
-          autoComplete="off"
-          disabled={submitting}
-          required
-        />
-        <MField
-          label="Nom du fournisseur"
-          id="supplierName"
-          value={values.suppliers_name}
-          error={errors.suppliers_name}
-          onChange={(event) => onChange({ suppliers_name: event.target.value })}
-          autoComplete="off"
-          disabled={submitting}
-          required
-        />
-        <MSelectField
-          label="Civilité"
-          id="supplierCivility"
-          value={values.suppliers_civility}
-          error={errors.suppliers_civility}
-          options={CIVILITY_OPTIONS}
-          onValueChange={(value) => onChange({ suppliers_civility: value as ApiCivility })}
-          disabled={submitting}
-          required
-        />
-        <MField
-          label="Personne de contact"
-          id="supplierContact"
-          value={values.suppliers_contact_name}
-          error={errors.suppliers_contact_name}
-          onChange={(event) => onChange({ suppliers_contact_name: event.target.value })}
-          autoComplete="off"
-          disabled={submitting}
-        />
-        <MField
-          label="Téléphone"
-          id="supplierPhone"
-          value={values.suppliers_telephone}
-          error={errors.suppliers_telephone}
-          onChange={(event) => onChange({ suppliers_telephone: event.target.value })}
-          autoComplete="off"
-          disabled={submitting}
-        />
-        <MField
-          label="Adresse e-mail"
-          type="email"
-          id="supplierMail"
-          value={values.suppliers_email}
-          error={errors.suppliers_email}
-          onChange={(event) => onChange({ suppliers_email: event.target.value })}
-          autoComplete="off"
-          disabled={submitting}
-        />
-      </div>
+      <section className="grid gap-4">
+        <div className="flex flex-col gap-0.5">
+          <h4 className="text-sm font-medium">Identité</h4>
+          <p className="text-xs text-muted-foreground">
+            Référence interne et informations du fournisseur.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <MField
+            label="Numéro"
+            id="supplierNumber"
+            value={values.supplier_number}
+            error={errors.supplier_number}
+            onChange={(event) =>
+              onChange({ supplier_number: event.target.value })
+            }
+            autoComplete="off"
+            disabled={submitting}
+            required
+          />
+          <MField
+            label="Nom du fournisseur"
+            id="supplierName"
+            value={values.suppliers_name}
+            error={errors.suppliers_name}
+            onChange={(event) =>
+              onChange({ suppliers_name: event.target.value })
+            }
+            autoComplete="off"
+            disabled={submitting}
+            required
+          />
+          <MSelectField
+            label="Civilité"
+            id="supplierCivility"
+            value={values.suppliers_civility}
+            error={errors.suppliers_civility}
+            options={CIVILITY_OPTIONS}
+            onValueChange={(value) =>
+              onChange({ suppliers_civility: value as ApiCivility })
+            }
+            disabled={submitting}
+            required
+          />
+          <MField
+            label="Personne de contact"
+            id="supplierContact"
+            value={values.suppliers_contact_name}
+            error={errors.suppliers_contact_name}
+            onChange={(event) =>
+              onChange({ suppliers_contact_name: event.target.value })
+            }
+            autoComplete="off"
+            disabled={submitting}
+          />
+        </div>
+      </section>
 
-      <div className="grid gap-1.5">
-        <AtomLabel htmlFor={addressId}>Adresse</AtomLabel>
-        <AtomTextarea
-          id={addressId}
-          rows={2}
-          value={values.suppliers_address}
-          onChange={(event) => onChange({ suppliers_address: event.target.value })}
-          aria-invalid={errors.suppliers_address ? true : undefined}
-          disabled={submitting}
-        />
-        {errors.suppliers_address ? (
-          <p className="text-xs text-destructive">{errors.suppliers_address}</p>
-        ) : null}
-      </div>
+      <section className="grid gap-4">
+        <div className="flex flex-col gap-0.5">
+          <h4 className="text-sm font-medium">Coordonnées</h4>
+          <p className="text-xs text-muted-foreground">
+            Facultatives, mais utiles pour contacter le fournisseur.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <MField
+            label="Téléphone"
+            id="supplierPhone"
+            value={values.suppliers_telephone}
+            error={errors.suppliers_telephone}
+            onChange={(event) =>
+              onChange({ suppliers_telephone: event.target.value })
+            }
+            autoComplete="off"
+            disabled={submitting}
+          />
+          <MField
+            label="Adresse e-mail"
+            type="email"
+            id="supplierMail"
+            value={values.suppliers_email}
+            error={errors.suppliers_email}
+            onChange={(event) =>
+              onChange({ suppliers_email: event.target.value })
+            }
+            autoComplete="off"
+            disabled={submitting}
+          />
+          <div className="grid gap-1.5 sm:col-span-2">
+            <AtomLabel htmlFor={addressId}>Adresse</AtomLabel>
+            <AtomTextarea
+              id={addressId}
+              rows={3}
+              value={values.suppliers_address}
+              onChange={(event) =>
+                onChange({ suppliers_address: event.target.value })
+              }
+              aria-invalid={errors.suppliers_address ? true : undefined}
+              disabled={submitting}
+            />
+            {errors.suppliers_address ? (
+              <p className="text-xs text-destructive">
+                {errors.suppliers_address}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <AtomButton type="submit" disabled={submitting}>
-          {submitting ? "Enregistrement…" : submitLabel}
-        </AtomButton>
-        <AtomButton
-          type="button"
-          variant="outline"
-          disabled={submitting}
-          onClick={onCancel}
-        >
-          Annuler
-        </AtomButton>
-      </div>
+      {showActions ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <AtomButton type="submit" disabled={submitting}>
+            {submitting ? "Enregistrement…" : submitLabel}
+          </AtomButton>
+          <AtomButton
+            type="button"
+            variant="outline"
+            disabled={submitting}
+            onClick={onCancel}
+          >
+            Annuler
+          </AtomButton>
+        </div>
+      ) : null}
     </form>
   )
 }

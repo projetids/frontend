@@ -129,12 +129,12 @@ export type ApiCivility = (typeof SUPPLIER_CIVILITIES)[number]
 export type ApiSupplier = {
   supplier_id: string
   supplier_number: string
-  name: string
-  civility: ApiCivility
-  contact_name?: string | null
-  address?: string | null
-  telephone?: string | null
-  email?: string | null
+  suppliers_name: string
+  suppliers_civility: ApiCivility
+  suppliers_contact_name?: string | null
+  suppliers_address?: string | null
+  suppliers_telephone?: string | null
+  suppliers_email?: string | null
   point_of_sale_id?: string | null
   created_at?: string
   updated_at?: string
@@ -142,9 +142,9 @@ export type ApiSupplier = {
 
 export type SupplierSortField =
   | "supplier_number"
-  | "name"
-  | "contact_name"
-  | "email"
+  | "suppliers_name"
+  | "suppliers_contact_name"
+  | "suppliers_email"
   | "created_at"
 
 export type SuppliersQuery = {
@@ -166,4 +166,6 @@ export type CreateSupplierPayload = {
   point_of_sale_id?: string | null
 }
 
-export type UpdateSupplierPayload = Partial<CreateSupplierPayload & { supplier_number?: string }>
+export type UpdateSupplierPayload = Partial<
+  CreateSupplierPayload & { supplier_number?: string }
+>

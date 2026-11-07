@@ -1,7 +1,14 @@
 import { AtomBadge, AtomButton } from "@/components/atoms"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EditIcon, TrashIcon, EyeIcon } from "lucide-react"
-import { Table, TableHeader, TableRow, TableCell, TableBody, TableHead } from "@/components/ui/table"
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableCell,
+  TableBody,
+  TableHead,
+} from "@/components/ui/table"
 import { civilityLabel, formatSupplierDate } from "@/lib/suppliers"
 import type { ApiSupplier } from "@/types/api"
 
@@ -33,7 +40,7 @@ export function OSuppliersTable({
   if (error) {
     return (
       <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-6">
-        <p className="text-destructive text-sm">{error}</p>
+        <p className="text-sm text-destructive">{error}</p>
         <AtomButton size="sm" variant="outline" onClick={onRetry}>
           Réessayer
         </AtomButton>
@@ -70,7 +77,7 @@ export function OSuppliersTable({
             <TableRow>
               <TableCell
                 colSpan={COLUMN_COUNT}
-                className="text-muted-foreground py-10 text-center text-sm"
+                className="py-10 text-center text-sm text-muted-foreground"
               >
                 Aucun fournisseur ne correspond à cette recherche.
               </TableCell>
@@ -78,31 +85,31 @@ export function OSuppliersTable({
           ) : (
             suppliers.map((supplier) => (
               <TableRow key={supplier.supplier_id}>
-                <TableCell className="font-medium">{supplier.supplier_number}</TableCell>
+                <TableCell className="font-medium">
+                  {supplier.supplier_number}
+                </TableCell>
                 <TableCell>
-                  <div className="font-medium">{supplier.name}</div>
+                  <div className="font-medium">{supplier.suppliers_name}</div>
                 </TableCell>
                 <TableCell>
                   <AtomBadge variant="outline">
-                    {civilityLabel(supplier.civility)}
+                    {civilityLabel(supplier.suppliers_civility)}
                   </AtomBadge>
                 </TableCell>
-                <TableCell>
-                    {supplier.contact_name || "—"}
+                <TableCell>{supplier.suppliers_contact_name || "—"}</TableCell>
+                <TableCell className="max-w-[16rem] truncate text-xs text-muted-foreground">
+                  {supplier.suppliers_address || "—"}
                 </TableCell>
-                <TableCell className="text-muted-foreground max-w-[16rem] truncate text-xs">
-                  {supplier.address || "—"}
+                <TableCell className="max-w-[16rem] truncate text-xs text-muted-foreground">
+                  {supplier.suppliers_telephone || "—"}
                 </TableCell>
-                <TableCell className="text-muted-foreground max-w-[16rem] truncate text-xs">
-                  {supplier.telephone || "—"}
+                <TableCell className="max-w-[16rem] truncate text-xs text-muted-foreground">
+                  {supplier.suppliers_email || "—"}
                 </TableCell>
-                <TableCell className="text-muted-foreground max-w-[16rem] truncate text-xs">
-                  {supplier.email || "—"}
-                </TableCell>
-                <TableCell className="text-muted-foreground text-xs">
+                <TableCell className="text-xs text-muted-foreground">
                   {formatSupplierDate(supplier.created_at)}
                 </TableCell>
-                <TableCell className="text-right" style={{ minWidth: '120' }}>
+                <TableCell className="text-right" style={{ minWidth: "120" }}>
                   <div className="flex justify-end gap-1">
                     <AtomButton
                       iconLeft={EditIcon}
@@ -148,4 +155,3 @@ export function OSuppliersTable({
     </div>
   )
 }
-

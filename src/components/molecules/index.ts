@@ -14,5 +14,9 @@ export {
   type MSupplierFormProps,
   type MSupplierFormValues,
 } from "./m-supplier-form"
+export {
+  MSupplierDetails,
+  type MSupplierDetailsProps,
+} from "./m-supplier-details"
 export { MPagination, type MPaginationProps } from "./m-pagination"
 export { MToaster, type MToasterProps } from "./m-toaster"
