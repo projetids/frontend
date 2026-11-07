@@ -161,12 +161,23 @@ export async function apiRequest<T>(
     return envelope
   }
 
-  // Réponse hors contrat (proxy, HTML d'erreur…)
-  throw new ApiError(
-    response.status,
-    response.ok ? "OK" : "HTTP_ERROR",
-    response.ok ? "Réponse inattendue de l'API" : `Erreur HTTP ${response.status}`,
-  )
+  // Réponse hors enveloppe : en succès JSON, la ressource est renvoyée telle
+  // quelle (ex. GET /auth/profile côté API) → on la considère comme `data`.
+  if (
+    response.ok &&
+    (response.headers.get("content-type") ?? "").includes("application/json")
+  ) {
+    return {
+      data: payload as T,
+      message: "",
+      status: response.status,
+      error: null,
+      signature: "IDS",
+    }
+  }
+
+  // Réponse d'erreur hors contrat (proxy, HTML d'erreur…)
+  throw new ApiError(response.status, "HTTP_ERROR", `Erreur HTTP ${response.status}`)
 }
 
 /** Les routes d'auth publiques gèrent elles-mêmes leurs 401 (pas de replay). */

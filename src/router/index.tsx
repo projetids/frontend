@@ -1,5 +1,5 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom"
-import { HomePage, ProfilePage, ValidationPage } from "@/pages"
+import { HomePage, ProfilePage, SuppliersPage, ValidationPage } from "@/pages"
 import Login from "@/components/shadcn-studio/blocks/login-page-01/login-page-01"
 import Register from "@/components/shadcn-studio/blocks/register-page-01/register-page-01"
 import { ForgotPasswordPage, ResetPasswordPage } from "@/pages"
@@ -10,7 +10,7 @@ import type { ApiRole } from "@/types/api"
 export type AppRole = ApiRole
 
 const allRoles: AppRole[] = ["superadmin", "admin", "cashier"]
-const validationRoles: AppRole[] = ["superadmin", "admin"]
+const managementRoles: AppRole[] = ["superadmin", "admin"]
 
 export const router = createBrowserRouter([
   { path: "/login", element: <Login /> },
@@ -37,7 +37,12 @@ export const router = createBrowserRouter([
           {
             path: "/validation",
             element: <ValidationPage />,
-            handle: { roles: validationRoles },
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/suppliers",
+            element: <SuppliersPage />,
+            handle: { roles: managementRoles },
           },
         ],
       },

@@ -117,3 +117,53 @@ export type ProfileUpdatePayload = {
   user_password?: string
   user_phone?: string
 }
+
+// ——— Fournisseurs (module /suppliers) ———
+
+/** Enum `suppliers_civility_enum` de l'API. */
+export const SUPPLIER_CIVILITIES = ["Mr", "Mme", "Mdlle"] as const
+
+export type ApiCivility = (typeof SUPPLIER_CIVILITIES)[number]
+
+/** Fournisseur renvoyé par l'API (scopé au point de vente de l'admin). */
+export type ApiSupplier = {
+  supplier_id: string
+  supplier_number: string
+  name: string
+  civility: ApiCivility
+  contact_name?: string | null
+  address?: string | null
+  telephone?: string | null
+  email?: string | null
+  point_of_sale_id?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export type SupplierSortField =
+  | "supplier_number"
+  | "name"
+  | "contact_name"
+  | "email"
+  | "created_at"
+
+export type SuppliersQuery = {
+  page?: number
+  limit?: number
+  search?: string
+  sort_by?: SupplierSortField
+  sort_order?: "ASC" | "DESC"
+}
+
+/** Champs optionnels : `null` efface la valeur existante lors d'un PATCH. */
+export type CreateSupplierPayload = {
+  suppliers_name: string
+  suppliers_civility: ApiCivility
+  suppliers_contact_name?: string | null
+  suppliers_address?: string | null
+  suppliers_telephone?: string | null
+  suppliers_email?: string | null
+  point_of_sale_id?: string | null
+}
+
+export type UpdateSupplierPayload = Partial<CreateSupplierPayload & { supplier_number?: string }>

@@ -1,19 +1,14 @@
 import {
   ChartNoAxesCombinedIcon,
-  DatabaseIcon,
-  PackageIcon,
-  ReceiptTextIcon,
-  SettingsIcon,
   ShieldCheckIcon,
-  ShieldIcon,
-  ShoppingCartIcon,
+  TruckIcon,
   UserRoundIcon,
 } from "lucide-react"
 import type { TAppSidebarGroup } from "@/components/templates/t-app-sidebar"
 
 // Navigation de la barre latérale pour les utilisateurs connectés.
-// Le tableau de bord, la validation des comptes et le profil sont des routes ;
-// les modules pas encore livrés renvoient vers la vue d'ensemble.
+// Seules les routes réellement livrées sont listées ; les modules à venir
+// seront ajoutés ici au fur et à mesure.
 // `roles` masque les entrées réservées à certains rôles (docs/auth.md §5).
 export const appNavigation: TAppSidebarGroup[] = [
   {
@@ -26,12 +21,14 @@ export const appNavigation: TAppSidebarGroup[] = [
     ],
   },
   {
-    label: "Modules",
+    label: "Gestion",
     items: [
-      { label: "Produits", icon: PackageIcon, href: "#modules" },
-      { label: "Ventes", icon: ShoppingCartIcon, href: "#modules" },
-      { label: "Stock", icon: DatabaseIcon, href: "#modules" },
-      { label: "Rapports", icon: ReceiptTextIcon, href: "#modules" },
+      {
+        label: "Fournisseurs",
+        icon: TruckIcon,
+        href: "/suppliers",
+        roles: ["superadmin", "admin"],
+      },
     ],
   },
   {
@@ -43,14 +40,10 @@ export const appNavigation: TAppSidebarGroup[] = [
         href: "/validation",
         roles: ["superadmin", "admin"],
       },
-      { label: "Sécurité", icon: ShieldIcon, href: "#modules" },
     ],
   },
   {
     label: "Compte",
-    items: [
-      { label: "Mon profil", icon: UserRoundIcon, href: "/profile" },
-      { label: "Paramètres", icon: SettingsIcon, href: "#modules" },
-    ],
+    items: [{ label: "Mon profil", icon: UserRoundIcon, href: "/profile" }],
   },
 ]
