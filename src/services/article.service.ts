@@ -11,7 +11,8 @@ import type {
 // rattaché à un point de vente : l'API scope automatiquement les admins à leur
 // PO, tandis que le superadmin voit tout et doit fournir `point_of_sale_id` à
 // la création. Les routes `PATCH`/`DELETE` répondent 404 hors périmètre.
-// `article_code` doit être unique pour un même point de vente (409 sinon).
+// `article_code` est généré par le serveur et immuable : il n'est jamais envoyé.
+// Un `409` ne survient que si le serveur ne parvient pas à générer un code unique.
 
 /** GET /articles (admin, superadmin) — liste paginée + filtres. */
 export async function listArticles(query: ArticlesQuery = {}) {

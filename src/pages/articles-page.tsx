@@ -284,8 +284,6 @@ export function ArticlesPage() {
   function validateForm(): MArticleFormErrors {
     const errors: MArticleFormErrors = {}
 
-    if (!values.article_code.trim())
-      errors.article_code = "Le code article est requis."
     if (!values.article_name.trim())
       errors.article_name = "La désignation est requise."
 
@@ -329,9 +327,9 @@ export function ArticlesPage() {
     // Champs libres vidés → `null` pour effacer la valeur existante.
     // Les montants restent des chaînes décimales ; une valeur vide vaut « 0 ».
     // Un ADMIN ne peut pas choisir le PO : l'API force le sien.
+    // `article_code` n'est jamais envoyé : il est généré par le serveur.
     const payload: CreateArticlePayload = {
       is_publish: values.is_publish,
-      article_code: values.article_code.trim(),
       article_name: values.article_name.trim(),
       article_unit: values.article_unit,
       article_families_id: Number(values.article_families_id),
@@ -369,13 +367,9 @@ export function ArticlesPage() {
       reload()
     } catch (err) {
       if (err instanceof ApiError && err.code === "CONFLICT") {
-        setFormErrors((prev) => ({
-          ...prev,
-          article_code: "Ce code est déjà utilisé pour ce point de vente.",
-        }))
         toast.error("Enregistrement refusé", {
           description:
-            "Un article porte déjà ce code dans ce point de vente. Choisissez un autre code.",
+            "Le serveur n'a pas pu générer un code article unique pour ce point de vente. Réessayez dans un instant.",
         })
       } else if (err instanceof ApiError && err.code === "NOT_FOUND") {
         toast.error("Enregistrement impossible", {
@@ -446,9 +440,10 @@ export function ArticlesPage() {
         </div>
         <h1 className="text-3xl font-semibold tracking-tight">Articles</h1>
         <p className="text-muted-foreground">
-          Gérez le catalogue articles du point de vente : codes, familles,
-          unités, tarifs et stock dénormalisé. Un article en veille reste
-          consultable mais n&apos;est plus proposé à la vente.
+          Gérez le catalogue articles du point de vente : familles, unités,
+          tarifs et stock dénormalisé. Le code article est généré
+          automatiquement par le serveur. Un article en veille reste consultable
+          mais n&apos;est plus proposé à la vente.
         </p>
       </header>
 
@@ -498,6 +493,7 @@ export function ArticlesPage() {
                 familiesError={familiesError}
                 showPointOfSale={isSuperadmin}
                 pointOfSaleRequired={isSuperadmin}
+                editing={editing !== null}
                 onChange={(patch) =>
                   setValues((prev) => ({ ...prev, ...patch }))
                 }

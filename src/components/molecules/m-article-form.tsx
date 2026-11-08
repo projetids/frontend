@@ -75,6 +75,8 @@ export type MArticleFormProps = {
   showPointOfSale?: boolean
   /** Rend le point de vente obligatoire (création par un SUPERADMIN). */
   pointOfSaleRequired?: boolean
+  /** Mode modification : le code généré est affiché en lecture seule. */
+  editing?: boolean
 }
 
 export function MArticleForm({
@@ -92,6 +94,7 @@ export function MArticleForm({
   showActions = true,
   showPointOfSale = false,
   pointOfSaleRequired = false,
+  editing = false,
 }: MArticleFormProps) {
   const barcodeId = useId()
   const locationId = useId()
@@ -124,23 +127,26 @@ export function MArticleForm({
         <div className="flex flex-col gap-0.5">
           <h4 className="text-sm font-medium">Identification</h4>
           <p className="text-xs text-muted-foreground">
-            Le code doit être unique pour le point de vente. La désignation, la
-            famille et l&apos;unité sont obligatoires.
+            La désignation, la famille et l&apos;unité sont obligatoires. Le
+            code article est généré automatiquement par le serveur.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <MField
+          {/* <MField
             label="Code article"
             id="articleCode"
             value={values.article_code}
-            error={errors.article_code}
-            placeholder="Ex. ART-001"
-            onChange={(event) => onChange({ article_code: event.target.value })}
+            description={
+              editing
+                ? "Code généré par le serveur : non modifiable."
+                : "Généré à l'enregistrement (3 premiers caractères du nom + numéro)."
+            }
+            placeholder={editing ? undefined : "Généré automatiquement"}
+            readOnly
             autoComplete="off"
             maxLength={100}
             disabled={submitting}
-            required
-          />
+          /> */}
           <MField
             label="Désignation"
             id="articleName"
@@ -176,7 +182,6 @@ export function MArticleForm({
             }
             options={ARTICLE_UNIT_OPTIONS}
             placeholder="Sélectionner une unité…"
-            description="Conditionnement de vente de l'article."
             error={errors.article_unit}
             disabled={submitting}
             required

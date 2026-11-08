@@ -11,11 +11,11 @@ Table : `articles` (scopée par point de vente, décision étape 1). Stock norma
 | `article_id` | uuid | PK, auto-généré | Identifiant |
 | `point_of_sale_id` | uuid | NOT NULL, FK `point_of_sales` RESTRICT, indexé | POS (scoping) |
 | `is_publish` | boolean | défaut `true` | Publié ; `false` = mise en veille |
-| `article_code` | varchar | NOT NULL, **unique par POS** (`article_code`,`point_of_sale_id`) | Code article |
+| `article_code` | varchar | NOT NULL, **généré serveur**, unique par POS (`article_code`,`point_of_sale_id`) | Code auto : 3 premiers caractères de `article_name` (espaces supprimés, trim, majuscules) + suffixe numérique 5 chiffres auto-incrémenté par préfixe/POS. Ex. `article_name="18 PETIT BEURRE"` → `18P00001`, puis `18P00002`. Non modifiable en `PATCH` ; ne pas envoyer à la création. |
 | `article_name` | varchar | NOT NULL | Désignation |
 | `article_unit` | enum `article_unit_enum` | `piece` \| `bouteille` | Unité |
 | `article_families_id` | int | NOT NULL, FK `article_families(article_families_id)` RESTRICT, indexé | Famille |
-| `article_barcode` | varchar | nullable | Code-barres 
+| `article_barcode` | varchar | nullable | Code-barres |
 | `article_tva_rate` | numeric(5,2) | défaut 0 | Taux TVA % |
 | `article_purchase_price_ht` / `article_purchase_price_ttc` | numeric(12,2) | défaut 0 | Prix achat HT/TTC |
 | `article_margin` | numeric(12,2) | défaut 0 | Marge |
@@ -43,9 +43,12 @@ Table : `articles` (scopée par point de vente, décision étape 1). Stock norma
 
 ## Règles / erreurs
 
-- `409` si `article_code` déjà utilisé pour le même POS. `404` si famille/POS cible introuvable. Montants en chaînes décimales (`"12.50"`).
+- `article_code` **généré serveur** à la création (préfixe 3 caractères du `article_name` sans espaces, MAJ, + suffixe `00001`… auto-incrémenté par préfixe/POS). Ne pas fournir `article_code` (ignoré/immuté en `PATCH`). En cas de collision concurrente très improbable, la création retente (puis `409`).
+- `409` si un code unique ne peut être généré (rare). `404` si famille/POS cible introuvable. Montants en chaînes décimales (`"12.50"`).
 
 ## Fichiers
 
 - `src/articles/*` (`article.entity.ts`, `dto/articles.dto.ts`, `articles.service.ts`, `articles.controller.ts`, `articles.module.ts`)
 - Migration : `src/database/migrations/1760700000000-CreateArticles.ts`
+## Transaction / atomicité
+- Traitements d’écriture (create/update/delete, et flows multi-étapes DB) exécutés dans une transaction TypeORM (DataSource.transaction/QueryRunner ou manager transactionnel). En cas d’erreur/exception, rollback automatique et aucune écriture partielle n’est persistée. Les effets externes non transactionnels (cache Redis, envoi mail, logs) ne sont pas couverts par la transaction DB.

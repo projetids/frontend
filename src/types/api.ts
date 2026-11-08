@@ -299,7 +299,7 @@ export type UpdateClientPayload = Partial<CreateClientPayload>
 // ——— Articles (module /articles) ———
 
 /** Unité de vente d'un article (enum `article_unit_enum` côté API). */
-export type ApiArticleUnit = "piece" | "bouteille"
+export type ApiArticleUnit = "pièce" | "bouteille" | "bac" | "bocal" | "boîte" | "botte" | "bouteille" | "carafe" | "course" | "fft" | "grs" | "kg" | "litre" | "mètre cube" | "paquet" | "pièce" | "portion" | "pot" | "sac" | "sachet" | "seau"
 
 /**
  * Article du catalogue, rattaché à un point de vente. Les montants et les
@@ -356,10 +356,13 @@ export type ArticlesQuery = {
  * (l'API force alors le PO du compte). Les champs libres optionnels acceptent
  * `null` pour effacer une valeur existante lors d'un PATCH ; les montants et
  * quantités restent des chaînes décimales.
+ *
+ * `article_code` est **généré par le serveur** (3 premiers caractères du nom +
+ * suffixe numérique par POS) : il ne doit jamais être envoyé, ni à la création
+ * ni en modification.
  */
 export type CreateArticlePayload = {
   is_publish?: boolean
-  article_code: string
   article_name: string
   article_unit: ApiArticleUnit
   article_families_id: number
