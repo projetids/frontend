@@ -194,6 +194,193 @@ export type CreateArticleFamilyPayload = {
 
 export type UpdateArticleFamilyPayload = Partial<CreateArticleFamilyPayload>
 
+// ——— Dépôts (module /depots) ———
+
+/**
+ * Dépôt = lieu de stockage logistique rattaché à un point de vente. Le
+ * `depot_code` est généré par le backend (`DEP-<12 hex>`), jamais fourni.
+ */
+export type ApiDepot = {
+  depot_id: string
+  depot_code: string
+  depot_name: string
+  depot_address?: string | null
+  depot_description?: string | null
+  is_active: boolean
+  point_of_sale_id: string
+  created_at?: string
+  updated_at?: string
+}
+
+/** Réponse légère de `GET /depots/select` (sélecteurs). */
+export type ApiDepotOption = {
+  depot_id: string
+  depot_name: string
+  depot_code: string
+  point_of_sale_id: string
+  is_active: boolean
+}
+
+export type DepotSortField =
+  "depot_code" | "depot_name" | "is_active" | "created_at"
+
+export type DepotsQuery = {
+  page?: number
+  limit?: number
+  search?: string
+  is_active?: boolean
+  sort_by?: DepotSortField
+  sort_order?: "ASC" | "DESC"
+}
+
+/**
+ * `point_of_sale_id` est requis pour un SUPERADMIN et ignoré pour un ADMIN
+ * (l'API force alors le PO du compte).
+ */
+export type CreateDepotPayload = {
+  depot_name: string
+  depot_address?: string | null
+  depot_description?: string | null
+  is_active?: boolean
+  point_of_sale_id?: string
+}
+
+export type UpdateDepotPayload = Partial<CreateDepotPayload>
+
+// ——— Clients (module /clients) ———
+
+/** Client rattaché à un point de vente (scopé pour les admins). */
+export type ApiClient = {
+  client_id: string
+  point_of_sale_id: string
+  client_name: string
+  client_telephone?: string | null
+  client_matricule?: string | null
+  client_corps?: string | null
+  client_grade?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+/** Réponse légère de `GET /clients/select` (sélecteurs de vente). */
+export type ApiClientOption = {
+  client_id: string
+  client_name: string
+  client_telephone?: string | null
+  point_of_sale_id: string
+}
+
+export type ClientSortField = "client_name" | "client_matricule" | "created_at"
+
+export type ClientsQuery = {
+  page?: number
+  limit?: number
+  search?: string
+  sort_by?: ClientSortField
+  sort_order?: "ASC" | "DESC"
+}
+
+/**
+ * `point_of_sale_id` est requis pour un SUPERADMIN et ignoré pour un ADMIN
+ * (l'API force alors le PO du compte). Les champs optionnels acceptent `null`
+ * pour effacer une valeur existante lors d'un PATCH.
+ */
+export type CreateClientPayload = {
+  client_name: string
+  client_telephone?: string | null
+  client_matricule?: string | null
+  client_corps?: string | null
+  client_grade?: string | null
+  point_of_sale_id?: string
+}
+
+export type UpdateClientPayload = Partial<CreateClientPayload>
+
+// ——— Articles (module /articles) ———
+
+/** Unité de vente d'un article (enum `article_unit_enum` côté API). */
+export type ApiArticleUnit = "piece" | "bouteille"
+
+/**
+ * Article du catalogue, rattaché à un point de vente. Les montants et les
+ * quantités sont renvoyés sous forme de chaînes décimales (`"12.50"`).
+ */
+export type ApiArticle = {
+  article_id: string
+  point_of_sale_id: string
+  is_publish: boolean
+  article_code: string
+  article_name: string
+  article_unit: ApiArticleUnit
+  article_families_id: number
+  article_barcode?: string | null
+  article_reference?: string | null
+  article_tva_rate: string
+  article_purchase_price_ht: string
+  article_purchase_price_ttc: string
+  article_margin: string
+  article_sale_price_ht: string
+  article_sale_price_ttc: string
+  article_theoretical_stock: string
+  article_reserved_qty: string
+  article_available_qty: string
+  article_location?: string | null
+  created_by?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+/** Réponse légère de `GET /articles/select` (articles publiés). */
+export type ApiArticleOption = {
+  article_id: string
+  article_code: string
+  article_name: string
+  point_of_sale_id: string
+  is_publish: boolean
+  article_unit: ApiArticleUnit
+}
+
+export type ArticleSortField = "article_code" | "article_name" | "created_at"
+
+export type ArticlesQuery = {
+  page?: number
+  limit?: number
+  search?: string
+  article_families_id?: number
+  is_publish?: boolean
+  sort_by?: ArticleSortField
+  sort_order?: "ASC" | "DESC"
+}
+
+/**
+ * `point_of_sale_id` est requis pour un SUPERADMIN et ignoré pour un ADMIN
+ * (l'API force alors le PO du compte). Les champs libres optionnels acceptent
+ * `null` pour effacer une valeur existante lors d'un PATCH ; les montants et
+ * quantités restent des chaînes décimales.
+ */
+export type CreateArticlePayload = {
+  is_publish?: boolean
+  article_code: string
+  article_name: string
+  article_unit: ApiArticleUnit
+  article_families_id: number
+  article_barcode?: string | null
+  article_reference?: string | null
+  article_tva_rate?: string
+  article_purchase_price_ht?: string
+  article_purchase_price_ttc?: string
+  article_margin?: string
+  article_sale_price_ht?: string
+  article_sale_price_ttc?: string
+  article_theoretical_stock?: string
+  article_reserved_qty?: string
+  article_available_qty?: string
+  article_location?: string | null
+  point_of_sale_id?: string
+}
+
+export type UpdateArticlePayload = Partial<CreateArticlePayload>
+
 // ——— Permissions utilisateur (module /permissions) ———
 
 /**

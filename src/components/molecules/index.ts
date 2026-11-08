@@ -33,6 +33,30 @@ export {
   type MArticleFamilyDetailsProps,
 } from "./m-article-family-details"
 export {
+  EMPTY_DEPOT_FORM,
+  MDepotForm,
+  type MDepotFormErrors,
+  type MDepotFormProps,
+  type MDepotFormValues,
+} from "./m-depot-form"
+export { MDepotDetails, type MDepotDetailsProps } from "./m-depot-details"
+export {
+  EMPTY_ARTICLE_FORM,
+  MArticleForm,
+  type MArticleFormErrors,
+  type MArticleFormProps,
+  type MArticleFormValues,
+} from "./m-article-form"
+export { MArticleDetails, type MArticleDetailsProps } from "./m-article-details"
+export {
+  EMPTY_CLIENT_FORM,
+  MClientForm,
+  type MClientFormErrors,
+  type MClientFormProps,
+  type MClientFormValues,
+} from "./m-client-form"
+export { MClientDetails, type MClientDetailsProps } from "./m-client-details"
+export {
   EMPTY_PERMISSION_FORM,
   MPermissionForm,
   type MPermissionFormErrors,

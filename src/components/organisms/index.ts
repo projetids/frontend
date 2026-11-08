@@ -6,6 +6,9 @@ export {
   OArticleFamiliesTable,
   type OArticleFamiliesTableProps,
 } from "./o-article-families-table"
+export { ODepotsTable, type ODepotsTableProps } from "./o-depots-table"
+export { OArticlesTable, type OArticlesTableProps } from "./o-articles-table"
+export { OClientsTable, type OClientsTableProps } from "./o-clients-table"
 export {
   OPermissionsTable,
   type OPermissionsTableProps,

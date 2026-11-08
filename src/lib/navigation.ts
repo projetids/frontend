@@ -2,9 +2,12 @@ import {
   ChartNoAxesCombinedIcon,
   FolderTreeIcon,
   KeyRoundIcon,
+  PackageIcon,
   ShieldCheckIcon,
   TruckIcon,
   UserRoundIcon,
+  UsersIcon,
+  WarehouseIcon,
 } from "lucide-react"
 import type { TAppSidebarGroup } from "@/components/templates/t-app-sidebar"
 
@@ -35,6 +38,24 @@ export const appNavigation: TAppSidebarGroup[] = [
         label: "Familles d'articles",
         icon: FolderTreeIcon,
         href: "/article-families",
+        roles: ["superadmin", "admin"],
+      },
+      {
+        label: "Articles",
+        icon: PackageIcon,
+        href: "/articles",
+        roles: ["superadmin", "admin"],
+      },
+      {
+        label: "Dépôts",
+        icon: WarehouseIcon,
+        href: "/depots",
+        roles: ["superadmin", "admin"],
+      },
+      {
+        label: "Clients",
+        icon: UsersIcon,
+        href: "/clients",
         roles: ["superadmin", "admin"],
       },
     ],

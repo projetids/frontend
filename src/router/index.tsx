@@ -1,6 +1,9 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom"
 import {
   ArticleFamiliesPage,
+  ArticlesPage,
+  ClientsPage,
+  DepotsPage,
   HomePage,
   ProfilePage,
   SuppliersPage,
@@ -54,6 +57,21 @@ export const router = createBrowserRouter([
           {
             path: "/article-families",
             element: <ArticleFamiliesPage />,
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/articles",
+            element: <ArticlesPage />,
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/depots",
+            element: <DepotsPage />,
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/clients",
+            element: <ClientsPage />,
             handle: { roles: managementRoles },
           },
           {
