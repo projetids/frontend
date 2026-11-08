@@ -314,7 +314,6 @@ export type ApiArticle = {
   article_unit: ApiArticleUnit
   article_families_id: number
   article_barcode?: string | null
-  article_reference?: string | null
   article_tva_rate: string
   article_purchase_price_ht: string
   article_purchase_price_ttc: string
@@ -365,7 +364,6 @@ export type CreateArticlePayload = {
   article_unit: ApiArticleUnit
   article_families_id: number
   article_barcode?: string | null
-  article_reference?: string | null
   article_tva_rate?: string
   article_purchase_price_ht?: string
   article_purchase_price_ttc?: string
@@ -380,6 +378,111 @@ export type CreateArticlePayload = {
 }
 
 export type UpdateArticlePayload = Partial<CreateArticlePayload>
+
+// ——— Stock (module /stock) ———
+
+/** Enum `mouvement_stock_type_enum` de l'API. */
+export const MOUVEMENT_STOCK_TYPES = [
+  "ENTREE",
+  "SORTIE",
+  "AJUSTEMENT_POS",
+  "AJUSTEMENT_NEG",
+  "INVENTAIRE",
+  "TRANSFERT_SORTIE",
+  "TRANSFERT_ENTREE",
+] as const
+
+export type ApiMouvementStockType = (typeof MOUVEMENT_STOCK_TYPES)[number]
+
+/** Enum `mouvement_ref_type_enum` de l'API (document à l'origine du mouvement). */
+export const MOUVEMENT_REF_TYPES = [
+  "BON_ENTREE",
+  "BON_SORTIE",
+  "INVENTAIRE",
+  "TRANSFERT",
+  "ACHAT_BR",
+  "VENTE_BL",
+  "VENTE_COMPTANT",
+  "MANUEL",
+] as const
+
+export type ApiMouvementRefType = (typeof MOUVEMENT_REF_TYPES)[number]
+
+/**
+ * Mouvement de stock (journal append-only). `qty` est la quantité **signée**
+ * renvoyée sous forme de chaîne décimale : positive pour une entrée, négative
+ * pour une sortie.
+ */
+export type ApiStockMovement = {
+  mouvement_id: string
+  article_id: string
+  depot_id: string
+  point_of_sale_id: string
+  type: ApiMouvementStockType
+  qty: string
+  ref_type: ApiMouvementRefType
+  ref_id?: string | null
+  motif?: string | null
+  movement_date: string
+  created_by?: string | null
+  created_at?: string
+}
+
+/**
+ * Ligne de l'état de stock théorique (`GET /stock/etat`) : agrégat des
+ * mouvements par article × dépôt. Contrairement aux mouvements, `qty` est un
+ * nombre déjà additionné par l'API.
+ */
+export type ApiStockStateRow = {
+  article_id: string
+  depot_id: string
+  point_of_sale_id: string
+  qty: number
+}
+
+export type MouvementsQuery = {
+  page?: number
+  limit?: number
+  article_id?: string
+  depot_id?: string
+  type?: ApiMouvementStockType
+  ref_type?: ApiMouvementRefType
+  /** Date ISO de début (`movement_date >=`). */
+  date_from?: string
+  /** Date ISO de fin (`movement_date <=`). */
+  date_to?: string
+  sort_by?: "movement_date" | "created_at"
+  sort_order?: "ASC" | "DESC"
+}
+
+export type StockStateQuery = {
+  article_id?: string
+  depot_id?: string
+  /** Filtre réservé au SUPERADMIN (ignoré pour un ADMIN). */
+  point_of_sale_id?: string
+}
+
+/** Ligne d'un bon d'entrée ou de sortie (`qty` > 0, le signe est déduit). */
+export type CreateStockBonLinePayload = {
+  article_id: string
+  qty: number
+  motif?: string
+}
+
+/** Corps de `POST /stock/bons-entree` et `POST /stock/bons-sortie`. */
+export type CreateStockBonPayload = {
+  depot_id: string
+  motif?: string
+  ref_id?: string
+  lines: CreateStockBonLinePayload[]
+}
+
+/** Réponse 201 des bons : mouvements créés dans la transaction. */
+export type CreateStockBonResponse = {
+  depot_id: string
+  count: number
+  movements: ApiStockMovement[]
+}
 
 // ——— Permissions utilisateur (module /permissions) ———
 

@@ -93,7 +93,6 @@ function toFormValues(article: ApiArticle): MArticleFormValues {
     article_unit: article.article_unit,
     article_families_id: String(article.article_families_id),
     article_barcode: article.article_barcode ?? "",
-    article_reference: article.article_reference ?? "",
     article_tva_rate: article.article_tva_rate ?? "0",
     article_purchase_price_ht: article.article_purchase_price_ht ?? "0",
     article_purchase_price_ttc: article.article_purchase_price_ttc ?? "0",
@@ -337,7 +336,6 @@ export function ArticlesPage() {
       article_unit: values.article_unit,
       article_families_id: Number(values.article_families_id),
       article_barcode: values.article_barcode.trim() || null,
-      article_reference: values.article_reference.trim() || null,
       article_tva_rate: normalizeDecimal(values.article_tva_rate),
       article_purchase_price_ht: normalizeDecimal(
         values.article_purchase_price_ht

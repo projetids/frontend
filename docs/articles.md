@@ -15,8 +15,7 @@ Table : `articles` (scopée par point de vente, décision étape 1). Stock norma
 | `article_name` | varchar | NOT NULL | Désignation |
 | `article_unit` | enum `article_unit_enum` | `piece` \| `bouteille` | Unité |
 | `article_families_id` | int | NOT NULL, FK `article_families(article_families_id)` RESTRICT, indexé | Famille |
-| `article_barcode` | varchar | nullable | Code-barres |
-| `article_reference` | varchar | nullable | Référence |
+| `article_barcode` | varchar | nullable | Code-barres 
 | `article_tva_rate` | numeric(5,2) | défaut 0 | Taux TVA % |
 | `article_purchase_price_ht` / `article_purchase_price_ttc` | numeric(12,2) | défaut 0 | Prix achat HT/TTC |
 | `article_margin` | numeric(12,2) | défaut 0 | Marge |

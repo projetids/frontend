@@ -29,7 +29,7 @@ function DetailRow({
   mono,
   multiline,
 }: DetailRowProps) {
-  const displayed = value?.trim() ? value : "—"
+  const displayed = value?.trim() ? value : "-"
 
   return (
     <div className="flex items-start gap-3">
@@ -113,7 +113,7 @@ export function MDepotDetails({ depot }: MDepotDetailsProps) {
       <div className="grid gap-1 border-t pt-4">
         <p className="text-xs font-medium text-muted-foreground">Description</p>
         <p className="text-sm whitespace-pre-line">
-          {depot.depot_description?.trim() || "—"}
+          {depot.depot_description?.trim() || "-"}
         </p>
       </div>
 

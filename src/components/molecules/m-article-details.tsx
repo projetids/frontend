@@ -47,7 +47,7 @@ function DetailRow({
   mono,
   multiline,
 }: DetailRowProps) {
-  const displayed = value?.trim() ? value : "—"
+  const displayed = value?.trim() ? value : "-"
 
   return (
     <div className="flex items-start gap-3">
@@ -148,11 +148,6 @@ export function MArticleDetails({ article, familyName }: MArticleDetailsProps) {
           label="Code-barres"
           value={article.article_barcode}
           mono
-        />
-        <DetailRow
-          icon={Tag}
-          label="Référence"
-          value={article.article_reference}
         />
         <DetailRow
           icon={MapPin}

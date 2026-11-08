@@ -80,6 +80,36 @@
     @apply font-sans;
   }
 
+  /* ————————————————— Curseurs —————————————————
+     Tous les éléments réellement interactifs (liens, boutons, options,
+     onglets, déclencheurs Radix…) affichent une main, y compris ceux rendus
+     par des bibliothèques qui imposent `cursor-default`. */
+  a[href],
+  button:not(:disabled),
+  summary,
+  [role="button"]:not([aria-disabled="true"]),
+  [role="link"],
+  [role="menuitem"],
+  [role="menuitemcheckbox"],
+  [role="menuitemradio"],
+  [role="option"],
+  [role="tab"],
+  [role="switch"],
+  [role="checkbox"]:not([aria-disabled="true"]),
+  [role="radio"]:not([aria-disabled="true"]),
+  [data-slot$="-trigger"],
+  [data-slot$="-close"] {
+    cursor: pointer;
+  }
+
+  /* États désactivés : curseur d'interdiction lorsqu'il reste visible. */
+  a[aria-disabled="true"],
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  [data-disabled] {
+    cursor: not-allowed;
+  }
+
   /* ————————————————— Barres de défilement —————————————————
      Même langage visuel que les surfaces : piste transparente,
      pouce arrondi discret qui s'accentue au survol. */
@@ -121,7 +151,7 @@
   /* Zones de défilement internes (modales, tableaux, menus) : barre plus fine. */
   [data-slot="dialog-body"]::-webkit-scrollbar,
   [data-slot="table-container"]::-webkit-scrollbar,
-  [data-slot="select-content"]::-webkit-scrollbar {
+  [data-slot="select-listbox"]::-webkit-scrollbar {
     width: calc(var(--scrollbar-size) - 0.25rem);
     height: calc(var(--scrollbar-size) - 0.25rem);
   }

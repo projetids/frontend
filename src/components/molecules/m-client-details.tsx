@@ -25,7 +25,7 @@ type DetailRowProps = {
 }
 
 function DetailRow({ icon: Icon, label, value, href, mono }: DetailRowProps) {
-  const displayed = value?.trim() ? value : "—"
+  const displayed = value?.trim() ? value : "-"
 
   return (
     <div className="flex items-start gap-3">

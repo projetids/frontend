@@ -47,7 +47,7 @@ export function TAuthenticatedLayout() {
           : undefined
       }
       onLogout={() => setConfirmLogout(true)}
-      footer="IDS — Gestion de Supermarché · Plateforme interne"
+      footer="IDS - Gestion de Supermarché · Plateforme interne"
     >
       <MConfirmDialog
         open={confirmLogout}

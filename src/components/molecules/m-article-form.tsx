@@ -18,7 +18,6 @@ export type MArticleFormValues = {
   article_unit: ApiArticleUnit
   article_families_id: string
   article_barcode: string
-  article_reference: string
   article_tva_rate: string
   article_purchase_price_ht: string
   article_purchase_price_ttc: string
@@ -43,7 +42,6 @@ export const EMPTY_ARTICLE_FORM: MArticleFormValues = {
   article_unit: "piece",
   article_families_id: "",
   article_barcode: "",
-  article_reference: "",
   article_tva_rate: "0",
   article_purchase_price_ht: "0",
   article_purchase_price_ttc: "0",
@@ -96,7 +94,6 @@ export function MArticleForm({
   pointOfSaleRequired = false,
 }: MArticleFormProps) {
   const barcodeId = useId()
-  const referenceId = useId()
   const locationId = useId()
   const publishId = useId()
 
@@ -138,7 +135,6 @@ export function MArticleForm({
             value={values.article_code}
             error={errors.article_code}
             placeholder="Ex. ART-001"
-            description="Unique par point de vente."
             onChange={(event) => onChange({ article_code: event.target.value })}
             autoComplete="off"
             maxLength={100}
@@ -195,18 +191,6 @@ export function MArticleForm({
             placeholder="Ex. 1234567890123"
             onChange={(event) =>
               onChange({ article_barcode: event.target.value })
-            }
-            autoComplete="off"
-            disabled={submitting}
-          />
-          <MField
-            label="Référence"
-            id={referenceId}
-            value={values.article_reference}
-            error={errors.article_reference}
-            placeholder="Ex. REF-001"
-            onChange={(event) =>
-              onChange({ article_reference: event.target.value })
             }
             autoComplete="off"
             disabled={submitting}

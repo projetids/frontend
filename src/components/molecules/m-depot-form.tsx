@@ -88,7 +88,6 @@ export function MDepotForm({
             value={values.depot_code}
             error={errors.depot_code}
             placeholder="Généré automatiquement"
-            description="Généré automatiquement par le backend, non modifiable."
             autoComplete="off"
             disabled
           />

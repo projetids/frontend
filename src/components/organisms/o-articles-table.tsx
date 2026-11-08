@@ -106,11 +106,7 @@ export function OArticlesTable({
                     <span className="block truncate font-medium">
                       {article.article_name}
                     </span>
-                    {article.article_reference?.trim() ? (
-                      <span className="block truncate text-xs text-muted-foreground">
-                        Réf. {article.article_reference}
-                      </span>
-                    ) : article.article_barcode?.trim() ? (
+                    {article.article_barcode?.trim() ? (
                       <span className="block truncate font-mono text-xs text-muted-foreground">
                         {article.article_barcode}
                       </span>

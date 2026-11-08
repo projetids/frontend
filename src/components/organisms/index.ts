@@ -13,3 +13,11 @@ export {
   OPermissionsTable,
   type OPermissionsTableProps,
 } from "./o-permissions-table"
+export {
+  OStockStateTable,
+  type OStockStateTableProps,
+} from "./o-stock-state-table"
+export {
+  OStockMovementsTable,
+  type OStockMovementsTableProps,
+} from "./o-stock-movements-table"

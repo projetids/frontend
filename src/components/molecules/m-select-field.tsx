@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/select"
 
 // Champ « select » étiqueté : même structure que MField (label, description,
-// erreur) pour rester homogène dans les formulaires.
+// erreur) pour rester homogène dans les formulaires. Le menu intègre un champ
+// de recherche qui filtre les options à la frappe.
 
 export type MSelectOption = {
   value: string
@@ -27,6 +28,8 @@ export type MSelectFieldProps = {
   error?: string
   disabled?: boolean
   required?: boolean
+  /** Texte d'invite du champ de recherche interne (défaut : « Rechercher… »). */
+  searchPlaceholder?: string
 }
 
 export function MSelectField({
@@ -40,10 +43,12 @@ export function MSelectField({
   error,
   disabled,
   required,
+  searchPlaceholder,
 }: MSelectFieldProps) {
   const generatedId = useId()
   const selectId = id ?? generatedId
-  const descriptionId = description || error ? `${selectId}-description` : undefined
+  const descriptionId =
+    description || error ? `${selectId}-description` : undefined
 
   return (
     <div className="grid gap-1.5">
@@ -51,7 +56,8 @@ export function MSelectField({
         {label}
         {required ? (
           <span className="text-destructive" aria-hidden>
-            {" "}*
+            {" "}
+            *
           </span>
         ) : null}
       </AtomLabel>
@@ -65,7 +71,7 @@ export function MSelectField({
         >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent searchPlaceholder={searchPlaceholder}>
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
