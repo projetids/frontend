@@ -60,7 +60,7 @@ export function MAchatDocumentDetails({
         {fields.map((field) => (
           <div key={field.label} className="grid gap-0.5">
             <dt className="text-xs text-muted-foreground">{field.label}</dt>
-            <dd className="text-sm font-medium break-words">{field.value}</dd>
+            <dd className="text-sm font-medium wrap-break-word">{field.value}</dd>
           </div>
         ))}
       </dl>
