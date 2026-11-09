@@ -14,7 +14,6 @@ import {
   MDepotForm,
   MPagination,
   MSearchBar,
-  type MDepotFormErrors,
   type MDepotFormValues,
 } from "@/components/molecules"
 import { ODepotsTable } from "@/components/organisms"
@@ -43,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/context/auth-context"
+import { hasFormErrors, useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import {
   DEPOT_STATUS_OPTIONS,
@@ -50,6 +50,7 @@ import {
   type DepotStatusFilter,
 } from "@/lib/depots"
 import { roleLabel } from "@/lib/roles"
+import { requiredRule, uuidRule } from "@/lib/validation"
 import * as depotService from "@/services/depot.service"
 import type { ApiDepot, CreateDepotPayload } from "@/types/api"
 
@@ -60,9 +61,6 @@ import type { ApiDepot, CreateDepotPayload } from "@/types/api"
 
 const PAGE_SIZE = 10
 const DEPOT_FORM_ID = "depot-form"
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** Convertit un dépôt API en valeurs de formulaire. */
 function toFormValues(depot: ApiDepot): MDepotFormValues {
@@ -93,8 +91,20 @@ export function DepotsPage() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiDepot | null>(null)
-  const [values, setValues] = useState<MDepotFormValues>(EMPTY_DEPOT_FORM)
-  const [formErrors, setFormErrors] = useState<MDepotFormErrors>({})
+  const form = useFormValidation<MDepotFormValues>({
+    initialValues: EMPTY_DEPOT_FORM,
+    rules: {
+      depot_name: requiredRule("Le nom est requis."),
+      ...(isSuperadmin
+        ? {
+            point_of_sale_id: [
+              requiredRule("Le point de vente est requis."),
+              uuidRule(),
+            ],
+          }
+        : {}),
+    },
+  })
   const [saving, setSaving] = useState(false)
   // Chargement de la fiche complète (GET /depots/:id) avant édition.
   const [formLoading, setFormLoading] = useState(false)
@@ -159,11 +169,10 @@ export function DepotsPage() {
     detailRequestRef.current += 1
     setFormLoading(false)
     setEditing(null)
-    setValues({
+    form.reset({
       ...EMPTY_DEPOT_FORM,
       point_of_sale_id: user?.point_of_sale_id ?? "",
     })
-    setFormErrors({})
     setFormOpen(true)
   }
 
@@ -172,8 +181,7 @@ export function DepotsPage() {
   async function openEdit(depot: ApiDepot) {
     const requestId = ++detailRequestRef.current
     setEditing(depot)
-    setValues(toFormValues(depot))
-    setFormErrors({})
+    form.reset(toFormValues(depot))
     setFormOpen(true)
     setFormLoading(true)
 
@@ -181,7 +189,7 @@ export function DepotsPage() {
       const { depot: fresh } = await depotService.getDepot(depot.depot_id)
       if (requestId !== detailRequestRef.current) return
       setEditing(fresh)
-      setValues(toFormValues(fresh))
+      form.reset(toFormValues(fresh))
     } catch (err) {
       if (requestId !== detailRequestRef.current) return
       toast.error("Chargement impossible", {
@@ -204,33 +212,19 @@ export function DepotsPage() {
     setFormLoading(false)
     setFormOpen(false)
     setEditing(null)
-    setValues(EMPTY_DEPOT_FORM)
-    setFormErrors({})
-  }
-
-  function validateForm(): MDepotFormErrors {
-    const errors: MDepotFormErrors = {}
-    if (!values.depot_name.trim()) errors.depot_name = "Le nom est requis."
-    if (isSuperadmin) {
-      const pointOfSale = values.point_of_sale_id.trim()
-      if (!pointOfSale) {
-        errors.point_of_sale_id = "Le point de vente est requis."
-      } else if (!UUID_REGEX.test(pointOfSale)) {
-        errors.point_of_sale_id = "Identifiant UUID invalide."
-      }
-    }
-    return errors
+    form.reset(EMPTY_DEPOT_FORM)
   }
 
   async function handleSubmit() {
-    const nextErrors = validateForm()
-    setFormErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) {
+    const nextErrors = form.validate()
+    if (hasFormErrors(nextErrors)) {
       toast.error("Formulaire incomplet", {
         description: "Corrigez les champs signalés en rouge.",
       })
       return
     }
+
+    const values = form.values
 
     // Champs optionnels vidés → `null` pour effacer la valeur existante.
     // `depot_code` est généré par le backend : il n'est jamais envoyé.
@@ -365,15 +359,13 @@ export function DepotsPage() {
               <MDepotForm
                 formId={DEPOT_FORM_ID}
                 showActions={false}
-                values={values}
-                errors={formErrors}
+                values={form.values}
+                errors={form.errors}
                 submitting={saving}
                 submitLabel={editing ? "Enregistrer" : "Créer"}
                 showPointOfSale={isSuperadmin}
                 pointOfSaleRequired={isSuperadmin}
-                onChange={(patch) =>
-                  setValues((prev) => ({ ...prev, ...patch }))
-                }
+                onChange={form.setValues}
                 onSubmit={() => void handleSubmit()}
                 onCancel={closeForm}
               />

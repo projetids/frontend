@@ -487,6 +487,307 @@ export type CreateStockBonResponse = {
   movements: ApiStockMovement[]
 }
 
+// ——— Achats (module /achats) ———
+
+/** Enum `commande_achat_status_enum` de l'API. */
+export const COMMANDE_ACHAT_STATUSES = [
+  "BROUILLON",
+  "VALIDEE",
+  "PARTIELLE",
+  "CLOTUREE",
+  "ANNULEE",
+] as const
+
+export type ApiCommandeAchatStatus =
+  (typeof COMMANDE_ACHAT_STATUSES)[number]
+
+/** Enum `bon_reception_status_enum` de l'API. */
+export const BON_RECEPTION_STATUSES = ["VALIDE", "ANNULE"] as const
+
+export type ApiBonReceptionStatus =
+  (typeof BON_RECEPTION_STATUSES)[number]
+
+/** Enum `facture_achat_status_enum` de l'API. */
+export const FACTURE_ACHAT_STATUSES = [
+  "BROUILLON",
+  "VALIDEE",
+  "ANNULEE",
+] as const
+
+export type ApiFactureAchatStatus =
+  (typeof FACTURE_ACHAT_STATUSES)[number]
+
+/** Ligne d'un bon de commande achat (quantités et prix en chaînes décimales). */
+export type ApiCommandeAchatLigne = {
+  ligne_id: string
+  commande_id: string
+  article_id: string
+  /** numeric(12,3) — quantité commandée. */
+  qty_ordered: string
+  /** numeric(12,3) — quantité déjà reçue. */
+  qty_received: string
+  /** numeric(12,2) — prix unitaire HT. */
+  unit_price_ht: string
+}
+
+/** Bon de commande achat (BCA) — engagement fournisseur, sans impact stock. */
+export type ApiCommandeAchat = {
+  commande_id: string
+  commande_code: string
+  supplier_id: string
+  point_of_sale_id: string
+  status: ApiCommandeAchatStatus
+  expected_date?: string | null
+  notes?: string | null
+  created_by?: string | null
+  validated_at?: string | null
+  created_at?: string
+  updated_at?: string
+  /** Présent uniquement sur GET /achats/commandes/:id. */
+  lignes?: ApiCommandeAchatLigne[]
+}
+
+/** Ligne d'un bon de réception (BR) — chaque ligne génère une ENTRÉE stock. */
+export type ApiBonReceptionLigne = {
+  ligne_id: string
+  reception_id: string
+  article_id: string
+  /** Ligne du bon de commande source (suivi des réceptions partielles). */
+  commande_ligne_id?: string | null
+  /** numeric(12,3) — quantité reçue. */
+  qty_received: string
+  /** numeric(12,2) — prix unitaire HT. */
+  unit_price_ht: string
+}
+
+/** Bon de réception achat — alimente le stock du dépôt choisi. */
+export type ApiBonReception = {
+  reception_id: string
+  reception_code: string
+  commande_id?: string | null
+  supplier_id: string
+  depot_id: string
+  point_of_sale_id: string
+  status: ApiBonReceptionStatus
+  notes?: string | null
+  created_by?: string | null
+  created_at?: string
+  /** Présent uniquement sur GET /achats/receptions/:id. */
+  lignes?: ApiBonReceptionLigne[]
+}
+
+/** Ligne d'une facture d'achat (document financier, sans impact stock). */
+export type ApiFactureAchatLigne = {
+  ligne_id: string
+  facture_id: string
+  article_id: string
+  /** numeric(12,3) — quantité facturée. */
+  qty: string
+  /** numeric(12,2) — prix unitaire HT. */
+  unit_price_ht: string
+}
+
+/** Facture d'achat (FAA) — rapprochement optionnel BC/BR. */
+export type ApiFactureAchat = {
+  facture_id: string
+  facture_code: string
+  supplier_invoice_ref?: string | null
+  commande_id?: string | null
+  reception_id?: string | null
+  supplier_id: string
+  point_of_sale_id: string
+  status: ApiFactureAchatStatus
+  invoice_date?: string | null
+  notes?: string | null
+  created_by?: string | null
+  created_at?: string
+  /** Présent uniquement sur GET /achats/factures/:id. */
+  lignes?: ApiFactureAchatLigne[]
+}
+
+/** Filtres communs des listes d'achats (paginées et scopées POS). */
+export type AchatsListQuery = {
+  page?: number
+  limit?: number
+  /** Réservé au SUPERADMIN : filtre global sur le point de vente. */
+  point_of_sale_id?: string
+  supplier_id?: string
+  commande_id?: string
+}
+
+
+/** Filtres des rapports d'achats (factures `VALIDEE` uniquement). */
+export type AchatsReportQuery = {
+  date_from?: string
+  date_to?: string
+  /** Réservé au SUPERADMIN : filtre global sur le point de vente. */
+  point_of_sale_id?: string
+  article_families_id?: number
+}
+
+
+// ——— Transferts (module /transferts) ———
+
+export const TRANSFERT_STATUSES = ["VALIDE", "ANNULE"] as const
+export type ApiTransfertStatus = (typeof TRANSFERT_STATUSES)[number]
+
+/** Ligne d'un transfert. */
+export type ApiTransfertLigne = {
+  ligne_id: string
+  transfert_id: string
+  article_id: string
+  qty: string | number
+}
+
+/** Transfert de stock entre dépôts. */
+export type ApiTransfert = {
+  transfert_id: string
+  transfert_code: string
+  depot_source_id: string
+  depot_cible_id: string
+  pos_source_id: string
+  pos_cible_id: string
+  is_inter_pos: boolean
+  status: ApiTransfertStatus
+  commentaire?: string | null
+  created_by?: string | null
+  created_at?: string
+  /** Présent uniquement sur GET /transferts/:id. */
+  lignes?: ApiTransfertLigne[]
+}
+
+/** Filtres des listes de transferts (paginées). */
+export type TransfertsListQuery = {
+  page?: number
+  limit?: number
+  point_of_sale_id?: string
+}
+
+export type CreateTransfertLinePayload = {
+  article_id: string
+  qty: number
+}
+
+export type CreateTransfertPayload = {
+  depot_source_id: string
+  depot_cible_id: string
+  commentaire?: string
+  lines: CreateTransfertLinePayload[]
+}
+
+// ——— Inventaires (module /inventaires) ———
+
+
+export const INVENTAIRE_STATUSES = ["BROUILLON", "VALIDE", "ANNULE"] as const
+export type ApiInventaireStatus = (typeof INVENTAIRE_STATUSES)[number]
+
+/** Ligne d'un inventaire (théorique snapshot + compté + écart). */
+export type ApiInventaireLigne = {
+  ligne_id: string
+  inventaire_id: string
+  article_id: string
+  qty_theorique: string | number
+  qty_comptee: string | number
+  ecart: string | number
+}
+
+/** Inventaire physique sur un dépôt. */
+export type ApiInventaire = {
+  inventaire_id: string
+  inventaire_code: string
+  depot_id: string
+  point_of_sale_id: string
+  status: ApiInventaireStatus
+  commentaire?: string | null
+  validated_at?: string | null
+  validated_by?: string | null
+  created_by?: string | null
+  created_at?: string
+  updated_at?: string
+  /** Présent uniquement sur GET /inventaires/:id. */
+  lignes?: ApiInventaireLigne[]
+}
+
+/** Filtres des listes d'inventaires (paginées et scopées POS). */
+export type InventairesListQuery = {
+  page?: number
+  limit?: number
+  depot_id?: string
+  status?: ApiInventaireStatus
+}
+
+export type CreateInventaireLinePayload = {
+  article_id: string
+  qty_comptee: number
+}
+
+export type CreateInventairePayload = {
+  depot_id: string
+  commentaire?: string
+  lines: CreateInventaireLinePayload[]
+}
+
+export type CreateCommandeAchatLinePayload = {
+  article_id: string
+  qty_ordered: number
+  unit_price_ht?: number
+}
+
+export type CreateCommandeAchatPayload = {
+  supplier_id: string
+  point_of_sale_id?: string
+  /** Date ISO courte (`YYYY-MM-DD`). */
+  expected_date?: string
+  notes?: string
+  lines: CreateCommandeAchatLinePayload[]
+}
+
+export type CreateBonReceptionLinePayload = {
+  article_id: string
+  qty_received: number
+  commande_ligne_id?: string
+  unit_price_ht?: number
+}
+
+export type CreateBonReceptionPayload = {
+  commande_id?: string
+  supplier_id: string
+  depot_id: string
+  point_of_sale_id?: string
+  notes?: string
+  lines: CreateBonReceptionLinePayload[]
+}
+
+export type CreateFactureAchatLinePayload = {
+  article_id: string
+  qty: number
+  unit_price_ht?: number
+}
+
+export type CreateFactureAchatPayload = {
+  supplier_id: string
+  commande_id?: string
+  reception_id?: string
+  supplier_invoice_ref?: string
+  /** Date ISO courte (`YYYY-MM-DD`). */
+  invoice_date?: string
+  point_of_sale_id?: string
+  notes?: string
+  lines: CreateFactureAchatLinePayload[]
+}
+
+/**
+ * Ligne agrégée d'un rapport d'achat. `total_qty` et `total_ht` proviennent de
+ * `SUM(...)` : PostgreSQL les renvoie en chaînes décimales.
+ */
+export type ApiAchatReportRow = {
+  article_id?: string
+  article_name?: string
+  article_families_id?: number | string
+  total_qty: string | number
+  total_ht: string | number
+}
+
 // ——— Permissions utilisateur (module /permissions) ———
 
 /**

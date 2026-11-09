@@ -1,10 +1,13 @@
 import {
+  ArrowLeftRightIcon,
   BoxesIcon,
   ChartNoAxesCombinedIcon,
+  ClipboardCheckIcon,
   FolderTreeIcon,
   KeyRoundIcon,
   PackageIcon,
   ShieldCheckIcon,
+  ShoppingCartIcon,
   TruckIcon,
   UserRoundIcon,
   UsersIcon,
@@ -57,6 +60,24 @@ export const appNavigation: TAppSidebarGroup[] = [
         label: "Stocks",
         icon: BoxesIcon,
         href: "/stocks",
+        roles: ["superadmin", "admin"],
+      },
+      {
+        label: "Transferts",
+        icon: ArrowLeftRightIcon,
+        href: "/transferts",
+        roles: ["superadmin", "admin"],
+      },
+      {
+        label: "Inventaires",
+        icon: ClipboardCheckIcon,
+        href: "/inventaires",
+        roles: ["superadmin", "admin"],
+      },
+      {
+        label: "Achats",
+        icon: ShoppingCartIcon,
+        href: "/achats",
         roles: ["superadmin", "admin"],
       },
       {

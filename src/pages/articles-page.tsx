@@ -14,7 +14,6 @@ import {
   MConfirmDialog,
   MPagination,
   MSearchBar,
-  type MArticleFormErrors,
   type MArticleFormValues,
 } from "@/components/molecules"
 import { OArticlesTable } from "@/components/organisms"
@@ -43,16 +42,22 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/context/auth-context"
+import { hasFormErrors, useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import {
   ARTICLE_STATUS_OPTIONS,
   articleFamilyLabel,
   articleStatusToQuery,
-  isDecimalInput,
   normalizeDecimal,
   type ArticleStatusFilter,
 } from "@/lib/articles"
 import { roleLabel } from "@/lib/roles"
+import {
+  decimalRule,
+  patternRule,
+  requiredRule,
+  uuidRule,
+} from "@/lib/validation"
 import * as articleFamilyService from "@/services/article-family.service"
 import * as articleService from "@/services/article.service"
 import type {
@@ -60,6 +65,7 @@ import type {
   ApiArticleFamily,
   CreateArticlePayload,
 } from "@/types/api"
+import type { FormRules } from "@/hooks/use-form-validation"
 
 // Gestion des articles (module API /articles) : liste paginée et recherchable
 // avec filtres famille/statut, création et modification dans une modal,
@@ -68,9 +74,6 @@ import type {
 
 const PAGE_SIZE = 10
 const ARTICLE_FORM_ID = "article-form"
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const DECIMAL_FIELDS = [
   ["article_tva_rate", "Le taux de TVA"],
@@ -83,6 +86,20 @@ const DECIMAL_FIELDS = [
   ["article_reserved_qty", "La quantité réservée"],
   ["article_available_qty", "La quantité disponible"],
 ] as const satisfies ReadonlyArray<readonly [keyof MArticleFormValues, string]>
+
+const ARTICLE_RULES: FormRules<MArticleFormValues> = {
+  article_name: requiredRule("La désignation est requise."),
+  article_families_id: [
+    requiredRule("La famille d'articles est requise."),
+    patternRule(/^[1-9]\d*$/, "La famille d'articles est requise."),
+  ],
+  ...Object.fromEntries(
+    DECIMAL_FIELDS.map(([field, label]) => {
+      const message = `${label} doit être un nombre positif (ex. 12.50).`
+      return [field, [requiredRule(message), decimalRule(message)]]
+    })
+  ),
+}
 
 /** Convertit un article API en valeurs de formulaire. */
 function toFormValues(article: ApiArticle): MArticleFormValues {
@@ -130,8 +147,20 @@ export function ArticlesPage() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiArticle | null>(null)
-  const [values, setValues] = useState<MArticleFormValues>(EMPTY_ARTICLE_FORM)
-  const [formErrors, setFormErrors] = useState<MArticleFormErrors>({})
+  const form = useFormValidation<MArticleFormValues>({
+    initialValues: EMPTY_ARTICLE_FORM,
+    rules: {
+      ...ARTICLE_RULES,
+      ...(isSuperadmin
+        ? {
+            point_of_sale_id: [
+              requiredRule("Le point de vente est requis."),
+              uuidRule(),
+            ],
+          }
+        : {}),
+    },
+  })
   const [saving, setSaving] = useState(false)
   // Chargement de la fiche complète (GET /articles/:id) avant édition.
   const [formLoading, setFormLoading] = useState(false)
@@ -229,12 +258,11 @@ export function ArticlesPage() {
     detailRequestRef.current += 1
     setFormLoading(false)
     setEditing(null)
-    setValues({
+    form.reset({
       ...EMPTY_ARTICLE_FORM,
       article_families_id: familyFilter === "all" ? "" : familyFilter,
       point_of_sale_id: user?.point_of_sale_id ?? "",
     })
-    setFormErrors({})
     setFormOpen(true)
   }
 
@@ -243,8 +271,7 @@ export function ArticlesPage() {
   async function openEdit(article: ApiArticle) {
     const requestId = ++detailRequestRef.current
     setEditing(article)
-    setValues(toFormValues(article))
-    setFormErrors({})
+    form.reset(toFormValues(article))
     setFormOpen(true)
     setFormLoading(true)
 
@@ -254,7 +281,7 @@ export function ArticlesPage() {
       )
       if (requestId !== detailRequestRef.current) return
       setEditing(fresh)
-      setValues(toFormValues(fresh))
+      form.reset(toFormValues(fresh))
     } catch (err) {
       if (requestId !== detailRequestRef.current) return
       toast.error("Chargement impossible", {
@@ -277,52 +304,19 @@ export function ArticlesPage() {
     setFormLoading(false)
     setFormOpen(false)
     setEditing(null)
-    setValues(EMPTY_ARTICLE_FORM)
-    setFormErrors({})
-  }
-
-  function validateForm(): MArticleFormErrors {
-    const errors: MArticleFormErrors = {}
-
-    if (!values.article_name.trim())
-      errors.article_name = "La désignation est requise."
-
-    const familyId = Number(values.article_families_id)
-    if (
-      !values.article_families_id ||
-      !Number.isInteger(familyId) ||
-      familyId < 1
-    ) {
-      errors.article_families_id = "La famille d'articles est requise."
-    }
-
-    for (const [key, label] of DECIMAL_FIELDS) {
-      if (!isDecimalInput(values[key])) {
-        errors[key] = `${label} doit être un nombre positif (ex. 12.50).`
-      }
-    }
-
-    if (isSuperadmin) {
-      const pointOfSale = values.point_of_sale_id.trim()
-      if (!pointOfSale) {
-        errors.point_of_sale_id = "Le point de vente est requis."
-      } else if (!UUID_REGEX.test(pointOfSale)) {
-        errors.point_of_sale_id = "Identifiant UUID invalide."
-      }
-    }
-
-    return errors
+    form.reset(EMPTY_ARTICLE_FORM)
   }
 
   async function handleSubmit() {
-    const nextErrors = validateForm()
-    setFormErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) {
+    const nextErrors = form.validate()
+    if (hasFormErrors(nextErrors)) {
       toast.error("Formulaire incomplet", {
         description: "Corrigez les champs signalés en rouge.",
       })
       return
     }
+
+    const values = form.values
 
     // Champs libres vidés → `null` pour effacer la valeur existante.
     // Les montants restent des chaînes décimales ; une valeur vide vaut « 0 ».
@@ -484,8 +478,8 @@ export function ArticlesPage() {
               <MArticleForm
                 formId={ARTICLE_FORM_ID}
                 showActions={false}
-                values={values}
-                errors={formErrors}
+                values={form.values}
+                errors={form.errors}
                 submitting={saving}
                 submitLabel={editing ? "Enregistrer" : "Créer"}
                 families={families}
@@ -494,9 +488,7 @@ export function ArticlesPage() {
                 showPointOfSale={isSuperadmin}
                 pointOfSaleRequired={isSuperadmin}
                 editing={editing !== null}
-                onChange={(patch) =>
-                  setValues((prev) => ({ ...prev, ...patch }))
-                }
+                onChange={form.setValues}
                 onSubmit={() => void handleSubmit()}
                 onCancel={closeForm}
               />

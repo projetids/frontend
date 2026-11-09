@@ -11,9 +11,16 @@ import {
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/context/auth-context"
+import { useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import { roleLabel, statusLabel } from "@/lib/roles"
-import { validateEmail, validatePassword, validatePhone } from "@/lib/validation"
+import {
+  emailRule,
+  passwordRule,
+  phoneRule,
+  requiredRule,
+  UUID_REGEX,
+} from "@/lib/validation"
 import * as authService from "@/services/auth.service"
 import type { ApiUser } from "@/types/api"
 
@@ -30,24 +37,21 @@ type Confirmation = {
   account: ApiUser
 }
 
-type CreateAdminErrors = Partial<{
+type CreateAdminFormValues = {
   name: string
   mail: string
   phone: string
   password: string
   pointOfSale: string
-}>
+}
 
-const EMPTY_ADMIN_FORM = {
+const EMPTY_ADMIN_FORM: CreateAdminFormValues = {
   name: "",
   mail: "",
   phone: "",
   password: "",
   pointOfSale: "",
 }
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function formatDate(value?: string): string {
   if (!value) return "—"
@@ -79,17 +83,19 @@ function AccountRow({
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{account.user_name}</p>
-        <p className="text-muted-foreground truncate text-xs">
+        <p className="truncate text-xs text-muted-foreground">
           {account.user_mail}
           {account.user_phone ? ` · ${account.user_phone}` : ""}
         </p>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           Créé le {formatDate(account.created_at)}
         </p>
       </div>
       <div className="flex items-center gap-2">
         <AtomBadge
-          variant={account.user_status === "rejected" ? "destructive" : "secondary"}
+          variant={
+            account.user_status === "rejected" ? "destructive" : "secondary"
+          }
         >
           {statusLabel(account.user_status)}
         </AtomBadge>
@@ -118,8 +124,16 @@ export function ValidationPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [adminForm, setAdminForm] = useState(EMPTY_ADMIN_FORM)
-  const [adminErrors, setAdminErrors] = useState<CreateAdminErrors>({})
+  const adminForm = useFormValidation<CreateAdminFormValues>({
+    initialValues: EMPTY_ADMIN_FORM,
+    rules: {
+      name: requiredRule("Le nom est requis."),
+      mail: [requiredRule("L'adresse e-mail est requise."), emailRule()],
+      phone: phoneRule(),
+      password: passwordRule(),
+      pointOfSale: requiredRule("Le point de vente est requis."),
+    },
+  })
   const [creating, setCreating] = useState(false)
   // Incrémenté pour relancer le chargement (bouton « Réessayer », action réussie).
   const [reloadKey, setReloadKey] = useState(0)
@@ -146,9 +160,8 @@ export function ValidationPage() {
         setRejectedAccounts(
           all.users.filter(
             (account) =>
-              account.role === targetRole &&
-              account.user_status === "rejected",
-          ),
+              account.role === targetRole && account.user_status === "rejected"
+          )
         )
         setError(null)
       } catch (err) {
@@ -156,7 +169,7 @@ export function ValidationPage() {
         setError(
           err instanceof ApiError
             ? err.details || err.message
-            : "Impossible de charger les demandes de validation.",
+            : "Impossible de charger les demandes de validation."
         )
       } finally {
         if (!cancelled) setLoading(false)
@@ -203,64 +216,50 @@ export function ValidationPage() {
     }
   }
 
-  async function handleCreateAdmin(event: React.FormEvent) {
-    event.preventDefault()
-
-    const nextErrors: CreateAdminErrors = {
-      name: adminForm.name.trim() ? undefined : "Le nom est requis.",
-      mail: validateEmail(adminForm.mail) ?? undefined,
-      phone: validatePhone(adminForm.phone, false) ?? undefined,
-      password: validatePassword(adminForm.password) ?? undefined,
-      pointOfSale: adminForm.pointOfSale.trim()
-        ? undefined
-        : "Le point de vente est requis.",
-    }
-    setAdminErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) {
+  const handleCreateAdmin = adminForm.handleSubmit(
+    async (values) => {
+      setCreating(true)
+      try {
+        const pointOfSale = values.pointOfSale.trim()
+        const phone = values.phone.trim()
+        const { envelope } = await authService.createAdmin({
+          user_name: values.name.trim(),
+          user_mail: values.mail.trim().toLowerCase(),
+          user_password: values.password,
+          ...(phone ? { user_phone: phone } : {}),
+          // Un UUID cible un point de vente existant ; sinon l'API le crée.
+          ...(UUID_REGEX.test(pointOfSale)
+            ? { point_of_sale_id: pointOfSale }
+            : { point_of_sale_nom: pointOfSale }),
+        })
+        toast.success(envelope.message)
+        adminForm.reset()
+        reload()
+      } catch (err) {
+        if (err instanceof ApiError && err.code === "CONFLICT") {
+          adminForm.setErrors({
+            mail: "Un compte utilise déjà ce nom ou cette adresse e-mail.",
+          })
+          toast.error("Création refusée", {
+            description: "Ce nom ou cette adresse e-mail est déjà utilisé.",
+          })
+        } else {
+          toast.error("Création impossible", {
+            description:
+              err instanceof ApiError
+                ? err.details || err.message
+                : "Erreur inattendue",
+          })
+        }
+      } finally {
+        setCreating(false)
+      }
+    },
+    () =>
       toast.error("Formulaire incomplet", {
         description: "Corrigez les champs signalés en rouge.",
       })
-      return
-    }
-
-    setCreating(true)
-    try {
-      const pointOfSale = adminForm.pointOfSale.trim()
-      const phone = adminForm.phone.trim()
-      const { envelope } = await authService.createAdmin({
-        user_name: adminForm.name.trim(),
-        user_mail: adminForm.mail.trim().toLowerCase(),
-        user_password: adminForm.password,
-        ...(phone ? { user_phone: phone } : {}),
-        // Un UUID cible un point de vente existant ; sinon l'API le crée.
-        ...(UUID_REGEX.test(pointOfSale)
-          ? { point_of_sale_id: pointOfSale }
-          : { point_of_sale_nom: pointOfSale }),
-      })
-      toast.success(envelope.message)
-      setAdminForm(EMPTY_ADMIN_FORM)
-      setAdminErrors({})
-      reload()
-    } catch (err) {
-      if (err instanceof ApiError && err.code === "CONFLICT") {
-        setAdminErrors({
-          mail: "Un compte utilise déjà ce nom ou cette adresse e-mail.",
-        })
-        toast.error("Création refusée", {
-          description: "Ce nom ou cette adresse e-mail est déjà utilisé.",
-        })
-      } else {
-        toast.error("Création impossible", {
-          description:
-            err instanceof ApiError
-              ? err.details || err.message
-              : "Erreur inattendue",
-        })
-      }
-    } finally {
-      setCreating(false)
-    }
-  }
+  )
 
   const actionLabel = (action: AccountAction): string =>
     action === "validate" ? "Valider" : "Réactiver"
@@ -282,7 +281,9 @@ export function ValidationPage() {
             ? "Le compte sera activé et pourra se connecter immédiatement."
             : "Le compte rejeté sera réactivé et pourra se connecter à nouveau."
         }
-        confirmLabel={confirmation ? actionLabel(confirmation.action) : "Confirmer"}
+        confirmLabel={
+          confirmation ? actionLabel(confirmation.action) : "Confirmer"
+        }
         onConfirm={() => void handleConfirm()}
       />
 
@@ -308,8 +309,8 @@ export function ValidationPage() {
             <CardTitle>Créer un compte admin</CardTitle>
             <CardDescription>
               Le compte est créé en attente : validez-le ensuite pour
-              l&apos;activer. Le point de vente est repris s&apos;il existe, sinon
-              créé à partir de son nom.
+              l&apos;activer. Le point de vente est repris s&apos;il existe,
+              sinon créé à partir de son nom.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -318,11 +319,9 @@ export function ValidationPage() {
                 <MField
                   label="Nom complet"
                   id="adminName"
-                  value={adminForm.name}
-                  error={adminErrors.name}
-                  onChange={(event) =>
-                    setAdminForm((prev) => ({ ...prev, name: event.target.value }))
-                  }
+                  value={adminForm.values.name}
+                  error={adminForm.errors.name}
+                  onChange={adminForm.handleChange("name")}
                   autoComplete="off"
                   disabled={creating}
                   required
@@ -331,11 +330,9 @@ export function ValidationPage() {
                   label="Adresse e-mail"
                   type="email"
                   id="adminMail"
-                  value={adminForm.mail}
-                  error={adminErrors.mail}
-                  onChange={(event) =>
-                    setAdminForm((prev) => ({ ...prev, mail: event.target.value }))
-                  }
+                  value={adminForm.values.mail}
+                  error={adminForm.errors.mail}
+                  onChange={adminForm.handleChange("mail")}
                   autoComplete="off"
                   disabled={creating}
                   required
@@ -343,12 +340,10 @@ export function ValidationPage() {
                 <MField
                   label="Téléphone"
                   id="adminPhone"
-                  value={adminForm.phone}
-                  error={adminErrors.phone}
+                  value={adminForm.values.phone}
+                  error={adminForm.errors.phone}
                   description="Optionnel — utilisé pour vous contacter."
-                  onChange={(event) =>
-                    setAdminForm((prev) => ({ ...prev, phone: event.target.value }))
-                  }
+                  onChange={adminForm.handleChange("phone")}
                   autoComplete="off"
                   disabled={creating}
                 />
@@ -356,15 +351,10 @@ export function ValidationPage() {
                   label="Mot de passe"
                   type="password"
                   id="adminPassword"
-                  value={adminForm.password}
-                  error={adminErrors.password}
+                  value={adminForm.values.password}
+                  error={adminForm.errors.password}
                   description="8 caractères min., avec casse variée, chiffre et caractère spécial."
-                  onChange={(event) =>
-                    setAdminForm((prev) => ({
-                      ...prev,
-                      password: event.target.value,
-                    }))
-                  }
+                  onChange={adminForm.handleChange("password")}
                   autoComplete="new-password"
                   disabled={creating}
                   required
@@ -373,15 +363,10 @@ export function ValidationPage() {
               <MField
                 label="Point de vente"
                 id="adminPointOfSale"
-                value={adminForm.pointOfSale}
-                error={adminErrors.pointOfSale}
+                value={adminForm.values.pointOfSale}
+                error={adminForm.errors.pointOfSale}
                 description="Nom du point de vente à créer, ou identifiant UUID d'un point de vente existant."
-                onChange={(event) =>
-                  setAdminForm((prev) => ({
-                    ...prev,
-                    pointOfSale: event.target.value,
-                  }))
-                }
+                onChange={adminForm.handleChange("pointOfSale")}
                 autoComplete="off"
                 disabled={creating}
                 required
@@ -412,13 +397,13 @@ export function ValidationPage() {
             </div>
           ) : error ? (
             <div className="flex flex-col items-start gap-3">
-              <p className="text-destructive text-sm">{error}</p>
+              <p className="text-sm text-destructive">{error}</p>
               <AtomButton size="sm" variant="outline" onClick={reload}>
                 Réessayer
               </AtomButton>
             </div>
           ) : pendingAccounts.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-muted-foreground">
               Aucune demande en attente.
             </p>
           ) : (

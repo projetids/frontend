@@ -2,7 +2,8 @@ import { useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import * as authService from "@/services/auth.service"
 import { useBackendMessage } from "@/hooks/use-backend-message"
-import { validatePassword } from "@/lib/validation"
+import { useFormValidation } from "@/hooks/use-form-validation"
+import { passwordRule } from "@/lib/validation"
 import AuthBackgroundShape from "@/assets/svg/auth-background-shape"
 import { AtomButton } from "@/components/atoms"
 import { MConfirmDialog, MField, MThemeToggle } from "@/components/molecules"
@@ -15,44 +16,38 @@ import {
 } from "@/components/ui/card"
 import Logo from "@/components/shadcn-studio/logo"
 
+type ResetPasswordFormValues = { password: string; confirm: string }
+
 export function ResetPasswordPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { notify, notifyError } = useBackendMessage()
   const token = searchParams.get("token") ?? ""
 
-  const [password, setPassword] = useState("")
-  const [confirm, setConfirm] = useState("")
+  const form = useFormValidation<ResetPasswordFormValues>({
+    initialValues: { password: "", confirm: "" },
+    rules: {
+      password: token
+        ? passwordRule()
+        : () => "Lien invalide : aucun token de réinitialisation trouvé.",
+      confirm: (value, values) =>
+        !values.password || value === values.password
+          ? null
+          : "Les mots de passe ne correspondent pas.",
+    },
+  })
   const [loading, setLoading] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [errors, setErrors] = useState<{ password?: string; confirm?: string }>(
-    {}
-  )
 
-  function handleSubmit(event: React.FormEvent) {
-    event.preventDefault()
-
-    const passwordError = !token
-      ? "Lien invalide : aucun token de réinitialisation trouvé."
-      : validatePassword(password)
-    const confirmError =
-      password && confirm !== password
-        ? "Les mots de passe ne correspondent pas."
-        : undefined
-    if (passwordError || confirmError || !token) {
-      setErrors({ password: passwordError ?? undefined, confirm: confirmError })
-      return
-    }
-
-    setErrors({})
+  const handleSubmit = form.handleSubmit(() => {
     // Formulaire valide : on confirme le remplacement du mot de passe.
     setConfirmOpen(true)
-  }
+  })
 
   async function handleConfirm() {
     setLoading(true)
     try {
-      await authService.resetPassword(token, password)
+      await authService.resetPassword(token, form.values.password)
       notify({ message: "Mot de passe réinitialisé. Connectez-vous." })
       navigate("/login")
     } catch (err) {
@@ -100,18 +95,18 @@ export function ResetPasswordPage() {
               label="Nouveau mot de passe"
               type="password"
               id="newPassword"
-              value={password}
-              error={errors.password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={form.values.password}
+              error={form.errors.password}
+              onChange={form.handleChange("password")}
               required
             />
             <MField
               label="Confirmer le mot de passe"
               type="password"
               id="confirmPassword"
-              value={confirm}
-              error={errors.confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              value={form.values.confirm}
+              error={form.errors.confirm}
+              onChange={form.handleChange("confirm")}
               required
             />
             <AtomButton type="submit" disabled={loading} className="w-full">

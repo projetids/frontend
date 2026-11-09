@@ -10,6 +10,9 @@ import {
   UserPermissionsPage,
   ValidationPage,
   StocksPage,
+  AchatsPage,
+  TransfertsPage,
+  InventairesPage
 } from "@/pages"
 import Login from "@/components/shadcn-studio/blocks/login-page-01/login-page-01"
 import Register from "@/components/shadcn-studio/blocks/register-page-01/register-page-01"
@@ -73,6 +76,21 @@ export const router = createBrowserRouter([
           {
             path: "/stocks",
             element: <StocksPage />,
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/transferts",
+            element: <TransfertsPage />,
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/inventaires",
+            element: <InventairesPage />,
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/achats",
+            element: <AchatsPage />,
             handle: { roles: managementRoles },
           },
           {

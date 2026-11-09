@@ -11,7 +11,6 @@ import {
   MSearchBar,
   MSelectField,
   MUserPermissionsPanel,
-  type MPermissionFormErrors,
   type MPermissionFormValues,
 } from "@/components/molecules"
 import { OPermissionsTable } from "@/components/organisms"
@@ -34,9 +33,11 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/context/auth-context"
+import { hasFormErrors, useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import { diffFlags, normalizeFlags } from "@/lib/permissions"
 import { roleLabel } from "@/lib/roles"
+import { requiredRule } from "@/lib/validation"
 import * as authService from "@/services/auth.service"
 import * as permissionService from "@/services/permission.service"
 import type { ApiPermission, ApiUser } from "@/types/api"
@@ -113,10 +114,21 @@ export function UserPermissionsPage() {
   // ——— Modales du catalogue ———
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiPermission | null>(null)
-  const [formValues, setFormValues] = useState<MPermissionFormValues>(
-    EMPTY_PERMISSION_FORM
-  )
-  const [formErrors, setFormErrors] = useState<MPermissionFormErrors>({})
+  const form = useFormValidation<MPermissionFormValues>({
+    initialValues: EMPTY_PERMISSION_FORM,
+    rules: {
+      code: [
+        requiredRule("Le code de la permission est requis."),
+        (value) => {
+          const code = String(value).trim().toUpperCase()
+          return PERMISSION_CODE_PATTERN.test(code)
+            ? null
+            : "Format invalide : lettres majuscules, chiffres, tiret ou underscore (20 max)."
+        },
+      ],
+      label_fr: requiredRule("Le libellé français est requis."),
+    },
+  })
   const [saving, setSaving] = useState(false)
   const [viewing, setViewing] = useState<ApiPermission | null>(null)
   const [toDelete, setToDelete] = useState<ApiPermission | null>(null)
@@ -368,53 +380,32 @@ export function UserPermissionsPage() {
 
   function openCreate() {
     setEditing(null)
-    setFormValues(EMPTY_PERMISSION_FORM)
-    setFormErrors({})
+    form.reset(EMPTY_PERMISSION_FORM)
     setFormOpen(true)
   }
 
   function openEdit(permission: ApiPermission) {
     setEditing(permission)
-    setFormValues(toFormValues(permission))
-    setFormErrors({})
+    form.reset(toFormValues(permission))
     setFormOpen(true)
   }
 
   function closeForm() {
     setFormOpen(false)
     setEditing(null)
-    setFormValues(EMPTY_PERMISSION_FORM)
-    setFormErrors({})
-  }
-
-  function validateForm(): MPermissionFormErrors {
-    const errors: MPermissionFormErrors = {}
-    const code = formValues.code.trim().toUpperCase()
-
-    if (!code) {
-      errors.code = "Le code de la permission est requis."
-    } else if (!PERMISSION_CODE_PATTERN.test(code)) {
-      errors.code =
-        "Format invalide : lettres majuscules, chiffres, tiret ou underscore (20 max)."
-    }
-
-    if (!formValues.label_fr.trim()) {
-      errors.label_fr = "Le libellé français est requis."
-    }
-
-    return errors
+    form.reset(EMPTY_PERMISSION_FORM)
   }
 
   async function handleSubmit() {
-    const nextErrors = validateForm()
-    setFormErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) {
+    const nextErrors = form.validate()
+    if (hasFormErrors(nextErrors)) {
       toast.error("Formulaire incomplet", {
         description: "Corrigez les champs signalés en rouge.",
       })
       return
     }
 
+    const formValues = form.values
     const code = formValues.code.trim().toUpperCase()
     const label = formValues.label_fr.trim()
 
@@ -462,7 +453,7 @@ export function UserPermissionsPage() {
       }
     } catch (err) {
       if (err instanceof ApiError && err.code === "CONFLICT") {
-        setFormErrors({ code: "Ce code est déjà utilisé par une permission." })
+        form.setErrors({ code: "Ce code est déjà utilisé par une permission." })
         toast.error("Enregistrement refusé", {
           description: "Une permission utilise déjà ce code.",
         })
@@ -764,13 +755,11 @@ export function UserPermissionsPage() {
               showActions={false}
               lockCode={editing !== null}
               showActive={editing !== null}
-              values={formValues}
-              errors={formErrors}
+              values={form.values}
+              errors={form.errors}
               submitting={saving}
               submitLabel={editing ? "Enregistrer" : "Créer"}
-              onChange={(patch) =>
-                setFormValues((previous) => ({ ...previous, ...patch }))
-              }
+              onChange={form.setValues}
               onSubmit={() => void handleSubmit()}
               onCancel={closeForm}
             />

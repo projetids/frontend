@@ -1,28 +1,29 @@
 import type { ApiArticleFamily, ApiArticleUnit } from "@/types/api"
+import { DECIMAL_REGEX } from "@/lib/validation"
 
 // Libellés et helpers d'affichage du module Articles.
 // L'API renvoie les montants et quantités sous forme de chaînes décimales.
 
 export const ARTICLE_UNIT_LABELS: Record<ApiArticleUnit, string> = {
-  "pièce": "Pièce",
-  "bouteille": "Bouteille",
-  "bac": "Bac",
-  "bocal": "Bocal",
-  "boîte": "Boîte",
-  "botte": "Botte",
-  "carafe": "Carafe",
-  "course": "Course",
-  "fft": "FFT",
-  "grs": "Grs",
-  "kg": "Kg",
-  "litre": "Litre",
+  pièce: "Pièce",
+  bouteille: "Bouteille",
+  bac: "Bac",
+  bocal: "Bocal",
+  boîte: "Boîte",
+  botte: "Botte",
+  carafe: "Carafe",
+  course: "Course",
+  fft: "FFT",
+  grs: "Grs",
+  kg: "Kg",
+  litre: "Litre",
   "mètre cube": "Mètre cube",
-  "paquet": "Paquet",
-  "portion": "Portion",
-  "pot": "Pot",
-  "sac": "Sac",
-  "sachet": "Sachet",
-  "seau": "Seau",
+  paquet: "Paquet",
+  portion: "Portion",
+  pot: "Pot",
+  sac: "Sac",
+  sachet: "Sachet",
+  seau: "Seau",
 }
 
 export const ARTICLE_UNIT_OPTIONS = (
@@ -131,5 +132,5 @@ export function normalizeDecimal(value: string): string {
 
 /** Vrai si la saisie est un nombre décimal positif (virgule acceptée). */
 export function isDecimalInput(value: string): boolean {
-  return /^\d+(?:[.,]\d+)?$/.test(value.trim())
+  return DECIMAL_REGEX.test(value.trim())
 }

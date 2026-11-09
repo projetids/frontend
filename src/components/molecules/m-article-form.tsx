@@ -39,7 +39,7 @@ export const EMPTY_ARTICLE_FORM: MArticleFormValues = {
   is_publish: true,
   article_code: "",
   article_name: "",
-  article_unit: "piece",
+  article_unit: "pièce",
   article_families_id: "",
   article_barcode: "",
   article_tva_rate: "0",
@@ -93,8 +93,7 @@ export function MArticleForm({
   formId,
   showActions = true,
   showPointOfSale = false,
-  pointOfSaleRequired = false,
-  editing = false,
+  pointOfSaleRequired = false
 }: MArticleFormProps) {
   const barcodeId = useId()
   const locationId = useId()

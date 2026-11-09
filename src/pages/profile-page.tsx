@@ -10,12 +10,15 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useAuth } from "@/context/auth-context"
+import { useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import { roleLabel, statusBadgeVariant, statusLabel } from "@/lib/roles"
 import {
-  validateEmail,
-  validatePassword,
-  validatePhone,
+  emailRule,
+  passwordRule,
+  phoneRule,
+  requiredRule,
+  sameAsRule,
 } from "@/lib/validation"
 import * as authService from "@/services/auth.service"
 
@@ -24,8 +27,8 @@ import * as authService from "@/services/auth.service"
 // passe confirmé par une modal, et rappel de toutes les métadonnées du compte
 // renvoyées par `GET /auth/profile`. Le rôle n'est pas modifiable ici.
 
-type ProfileErrors = Partial<{ name: string; mail: string; phone: string }>
-type PasswordErrors = Partial<{ password: string; confirm: string }>
+type ProfileFormValues = { name: string; mail: string; phone: string }
+type PasswordFormValues = { password: string; confirm: string }
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -36,99 +39,88 @@ function initials(name: string): string {
 
 export function ProfilePage() {
   const { user, updateUser } = useAuth()
-  const [profileForm, setProfileForm] = useState({
-    name: user?.user_name ?? "",
-    mail: user?.user_mail ?? "",
-    phone: user?.user_phone ?? "",
+  const profileForm = useFormValidation<ProfileFormValues>({
+    initialValues: {
+      name: user?.user_name ?? "",
+      mail: user?.user_mail ?? "",
+      phone: user?.user_phone ?? "",
+    },
+    rules: {
+      name: requiredRule("Le nom est requis."),
+      mail: [requiredRule("L'adresse e-mail est requise."), emailRule()],
+      phone: phoneRule(),
+    },
   })
-  const [profileErrors, setProfileErrors] = useState<ProfileErrors>({})
   const [savingProfile, setSavingProfile] = useState(false)
-  const [passwordForm, setPasswordForm] = useState({
-    password: "",
-    confirm: "",
+  const passwordForm = useFormValidation<PasswordFormValues>({
+    initialValues: { password: "", confirm: "" },
+    rules: {
+      password: passwordRule(),
+      confirm: sameAsRule<PasswordFormValues>(
+        "password",
+        "Les mots de passe ne correspondent pas."
+      ),
+    },
   })
-  const [passwordErrors, setPasswordErrors] = useState<PasswordErrors>({})
   const [savingPassword, setSavingPassword] = useState(false)
   const [confirmPassword, setConfirmPassword] = useState(false)
 
-  async function handleProfileSubmit(event: React.FormEvent) {
-    event.preventDefault()
-
-    const nextErrors: ProfileErrors = {
-      name: profileForm.name.trim() ? undefined : "Le nom est requis.",
-      mail: validateEmail(profileForm.mail) ?? undefined,
-      phone: validatePhone(profileForm.phone, false) ?? undefined,
-    }
-    setProfileErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) {
+  const handleProfileSubmit = profileForm.handleSubmit(
+    async (values) => {
+      setSavingProfile(true)
+      try {
+        const phone = values.phone.trim()
+        const { user: updated } = await authService.updateProfile({
+          user_name: values.name.trim(),
+          user_mail: values.mail.trim().toLowerCase(),
+          ...(phone ? { user_phone: phone } : {}),
+        })
+        updateUser(updated)
+        profileForm.reset({
+          name: updated.user_name,
+          mail: updated.user_mail,
+          phone: updated.user_phone ?? "",
+        })
+        toast.success("Profil mis à jour")
+      } catch (err) {
+        if (err instanceof ApiError && err.code === "CONFLICT") {
+          profileForm.setErrors({
+            mail: "Un compte utilise déjà cette adresse e-mail.",
+          })
+          toast.error("Mise à jour refusée", {
+            description: "Cette adresse e-mail est déjà utilisée.",
+          })
+        } else {
+          toast.error("Mise à jour impossible", {
+            description:
+              err instanceof ApiError
+                ? err.details || err.message
+                : "Erreur inattendue",
+          })
+        }
+      } finally {
+        setSavingProfile(false)
+      }
+    },
+    () =>
       toast.error("Formulaire incomplet", {
         description: "Corrigez les champs signalés en rouge.",
       })
-      return
-    }
+  )
 
-    setSavingProfile(true)
-    try {
-      const phone = profileForm.phone.trim()
-      const { user: updated } = await authService.updateProfile({
-        user_name: profileForm.name.trim(),
-        user_mail: profileForm.mail.trim().toLowerCase(),
-        ...(phone ? { user_phone: phone } : {}),
-      })
-      updateUser(updated)
-      setProfileForm({
-        name: updated.user_name,
-        mail: updated.user_mail,
-        phone: updated.user_phone ?? "",
-      })
-      toast.success("Profil mis à jour")
-    } catch (err) {
-      if (err instanceof ApiError && err.code === "CONFLICT") {
-        setProfileErrors({
-          mail: "Un compte utilise déjà cette adresse e-mail.",
-        })
-        toast.error("Mise à jour refusée", {
-          description: "Cette adresse e-mail est déjà utilisée.",
-        })
-      } else {
-        toast.error("Mise à jour impossible", {
-          description:
-            err instanceof ApiError
-              ? err.details || err.message
-              : "Erreur inattendue",
-        })
-      }
-    } finally {
-      setSavingProfile(false)
-    }
-  }
-
-  function handlePasswordSubmit(event: React.FormEvent) {
-    event.preventDefault()
-
-    const nextErrors: PasswordErrors = {
-      password: validatePassword(passwordForm.password) ?? undefined,
-      confirm:
-        passwordForm.confirm !== passwordForm.password
-          ? "Les mots de passe ne correspondent pas."
-          : undefined,
-    }
-    setPasswordErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) return
-
+  const handlePasswordSubmit = passwordForm.handleSubmit(() => {
     // Action sensible : confirmation explicite avant l'appel à l'API.
     setConfirmPassword(true)
-  }
+  })
 
   async function handlePasswordConfirm() {
     setSavingPassword(true)
     try {
       const { user: updated } = await authService.updateProfile({
-        user_password: passwordForm.password,
+        user_password: passwordForm.values.password,
       })
       updateUser(updated)
-      setPasswordForm({ password: "", confirm: "" })
-      setPasswordErrors({})
+      passwordForm.reset()
       toast.success("Mot de passe mis à jour")
     } catch (err) {
       toast.error("Changement impossible", {
@@ -198,14 +190,9 @@ export function ProfilePage() {
                   <MField
                     label="Nom complet"
                     id="profileName"
-                    value={profileForm.name}
-                    error={profileErrors.name}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        name: event.target.value,
-                      }))
-                    }
+                    value={profileForm.values.name}
+                    error={profileForm.errors.name}
+                    onChange={profileForm.handleChange("name")}
                     autoComplete="name"
                     disabled={savingProfile}
                     required
@@ -214,14 +201,9 @@ export function ProfilePage() {
                     label="Adresse e-mail"
                     type="email"
                     id="profileMail"
-                    value={profileForm.mail}
-                    error={profileErrors.mail}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        mail: event.target.value,
-                      }))
-                    }
+                    value={profileForm.values.mail}
+                    error={profileForm.errors.mail}
+                    onChange={profileForm.handleChange("mail")}
                     autoComplete="email"
                     disabled={savingProfile}
                     required
@@ -229,15 +211,10 @@ export function ProfilePage() {
                   <MField
                     label="Téléphone"
                     id="profilePhone"
-                    value={profileForm.phone}
-                    error={profileErrors.phone}
+                    value={profileForm.values.phone}
+                    error={profileForm.errors.phone}
                     description="Optionnel — utilisé pour vous contacter."
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        phone: event.target.value,
-                      }))
-                    }
+                    onChange={profileForm.handleChange("phone")}
                     autoComplete="tel"
                     disabled={savingProfile}
                   />
@@ -269,14 +246,9 @@ export function ProfilePage() {
                     label="Nouveau mot de passe"
                     type="password"
                     id="profilePassword"
-                    value={passwordForm.password}
-                    error={passwordErrors.password}
-                    onChange={(event) =>
-                      setPasswordForm((prev) => ({
-                        ...prev,
-                        password: event.target.value,
-                      }))
-                    }
+                    value={passwordForm.values.password}
+                    error={passwordForm.errors.password}
+                    onChange={passwordForm.handleChange("password")}
                     autoComplete="new-password"
                     disabled={savingPassword}
                     required
@@ -285,14 +257,9 @@ export function ProfilePage() {
                     label="Confirmer le mot de passe"
                     type="password"
                     id="profilePasswordConfirm"
-                    value={passwordForm.confirm}
-                    error={passwordErrors.confirm}
-                    onChange={(event) =>
-                      setPasswordForm((prev) => ({
-                        ...prev,
-                        confirm: event.target.value,
-                      }))
-                    }
+                    value={passwordForm.values.confirm}
+                    error={passwordForm.errors.confirm}
+                    onChange={passwordForm.handleChange("confirm")}
                     autoComplete="new-password"
                     disabled={savingPassword}
                     required

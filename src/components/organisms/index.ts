@@ -21,3 +21,27 @@ export {
   OStockMovementsTable,
   type OStockMovementsTableProps,
 } from "./o-stock-movements-table"
+export {
+  OInventairesTable,
+  type OInventairesTableProps,
+} from "./o-inventaires-table"
+export {
+  OTransfertsTable,
+  type OTransfertsTableProps,
+} from "./o-transferts-table"
+export {
+  OCommandesAchatTable,
+  type OCommandesAchatTableProps,
+} from "./o-commandes-achat-table"
+export {
+  OReceptionsAchatTable,
+  type OReceptionsAchatTableProps,
+} from "./o-receptions-achat-table"
+export {
+  OFacturesAchatTable,
+  type OFacturesAchatTableProps,
+} from "./o-factures-achat-table"
+export {
+  OAchatsReportTable,
+  type OAchatsReportTableProps,
+} from "./o-achats-report-table"

@@ -14,7 +14,6 @@ import {
   MConfirmDialog,
   MPagination,
   MSearchBar,
-  type MArticleFamilyFormErrors,
   type MArticleFamilyFormValues,
 } from "@/components/molecules"
 import { OArticleFamiliesTable } from "@/components/organisms"
@@ -36,8 +35,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/context/auth-context"
+import { hasFormErrors, useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import { roleLabel } from "@/lib/roles"
+import { requiredRule } from "@/lib/validation"
 import * as articleFamilyService from "@/services/article-family.service"
 import type { ApiArticleFamily } from "@/types/api"
 
@@ -68,10 +69,12 @@ export function ArticleFamiliesPage() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiArticleFamily | null>(null)
-  const [values, setValues] = useState<MArticleFamilyFormValues>(
-    EMPTY_ARTICLE_FAMILY_FORM
-  )
-  const [formErrors, setFormErrors] = useState<MArticleFamilyFormErrors>({})
+  const form = useFormValidation<MArticleFamilyFormValues>({
+    initialValues: EMPTY_ARTICLE_FAMILY_FORM,
+    rules: {
+      article_families_name: requiredRule("Le nom de la famille est requis."),
+    },
+  })
   const [saving, setSaving] = useState(false)
   // Chargement de la fiche complète (GET /article-families/:id) avant édition.
   const [formLoading, setFormLoading] = useState(false)
@@ -135,8 +138,7 @@ export function ArticleFamiliesPage() {
     detailRequestRef.current += 1
     setFormLoading(false)
     setEditing(null)
-    setValues(EMPTY_ARTICLE_FAMILY_FORM)
-    setFormErrors({})
+    form.reset(EMPTY_ARTICLE_FAMILY_FORM)
     setFormOpen(true)
   }
 
@@ -146,8 +148,7 @@ export function ArticleFamiliesPage() {
   async function openEdit(family: ApiArticleFamily) {
     const requestId = ++detailRequestRef.current
     setEditing(family)
-    setValues(toFormValues(family))
-    setFormErrors({})
+    form.reset(toFormValues(family))
     setFormOpen(true)
     setFormLoading(true)
 
@@ -157,7 +158,7 @@ export function ArticleFamiliesPage() {
       )
       if (requestId !== detailRequestRef.current) return
       setEditing(fresh)
-      setValues(toFormValues(fresh))
+      form.reset(toFormValues(fresh))
     } catch (err) {
       if (requestId !== detailRequestRef.current) return
       toast.error("Chargement impossible", {
@@ -180,21 +181,12 @@ export function ArticleFamiliesPage() {
     setFormLoading(false)
     setFormOpen(false)
     setEditing(null)
-    setValues(EMPTY_ARTICLE_FAMILY_FORM)
-    setFormErrors({})
-  }
-
-  function validateForm(): MArticleFamilyFormErrors {
-    const errors: MArticleFamilyFormErrors = {}
-    if (!values.article_families_name.trim())
-      errors.article_families_name = "Le nom de la famille est requis."
-    return errors
+    form.reset(EMPTY_ARTICLE_FAMILY_FORM)
   }
 
   async function handleSubmit() {
-    const nextErrors = validateForm()
-    setFormErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) {
+    const nextErrors = form.validate()
+    if (hasFormErrors(nextErrors)) {
       toast.error("Formulaire incomplet", {
         description: "Renseignez le nom de la famille d'articles.",
       })
@@ -202,7 +194,7 @@ export function ArticleFamiliesPage() {
     }
 
     const payload = {
-      article_families_name: values.article_families_name.trim(),
+      article_families_name: form.values.article_families_name.trim(),
     }
 
     setSaving(true)
@@ -221,7 +213,7 @@ export function ArticleFamiliesPage() {
       reload()
     } catch (err) {
       if (err instanceof ApiError && err.code === "CONFLICT") {
-        setFormErrors({
+        form.setErrors({
           article_families_name: "Cette famille d'articles existe déjà.",
         })
         toast.error("Enregistrement refusé", {
@@ -337,13 +329,11 @@ export function ArticleFamiliesPage() {
               <MArticleFamilyForm
                 formId={ARTICLE_FAMILY_FORM_ID}
                 showActions={false}
-                values={values}
-                errors={formErrors}
+                values={form.values}
+                errors={form.errors}
                 submitting={saving}
                 submitLabel={editing ? "Enregistrer" : "Créer"}
-                onChange={(patch) =>
-                  setValues((prev) => ({ ...prev, ...patch }))
-                }
+                onChange={form.setValues}
                 onSubmit={() => void handleSubmit()}
                 onCancel={closeForm}
               />

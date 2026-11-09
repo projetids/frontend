@@ -44,10 +44,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/context/auth-context"
+import { hasFormErrors, useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import { isDecimalInput, normalizeDecimal } from "@/lib/articles"
 import { roleLabel } from "@/lib/roles"
 import { MOUVEMENT_REF_OPTIONS, MOUVEMENT_TYPE_OPTIONS } from "@/lib/stocks"
+import { requiredRule, UUID_REGEX, uuidRule } from "@/lib/validation"
 import * as articleService from "@/services/article.service"
 import * as depotService from "@/services/depot.service"
 import * as stockService from "@/services/stock.service"
@@ -70,9 +72,6 @@ import { cn } from "cn"
 const PAGE_SIZE = 10
 const BON_FORM_ID = "stock-bon-form"
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 type StockTab = "etat" | "mouvements"
 
 /** Convertit une date de filtre (`YYYY-MM-DD`) en début de journée ISO. */
@@ -87,15 +86,6 @@ function endOfDayIso(value: string): string | undefined {
   if (!value) return undefined
   const date = new Date(`${value}T23:59:59.999`)
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
-}
-
-function hasBonErrors(errors: MStockBonFormErrors): boolean {
-  return Boolean(
-    errors.depot_id ||
-    errors.ref_id ||
-    errors.lines ||
-    (errors.lineErrors && Object.keys(errors.lineErrors).length > 0)
-  )
 }
 
 export function StocksPage() {
@@ -138,10 +128,13 @@ export function StocksPage() {
 
   // Modal de création d'un bon d'entrée ou de sortie.
   const [bonMode, setBonMode] = useState<MStockBonMode | null>(null)
-  const [bonValues, setBonValues] = useState<MStockBonFormValues>(
-    createEmptyStockBonForm
-  )
-  const [bonErrors, setBonErrors] = useState<MStockBonFormErrors>({})
+  const bonForm = useFormValidation<MStockBonFormValues>({
+    initialValues: createEmptyStockBonForm,
+    rules: {
+      depot_id: requiredRule("Le dépôt est requis."),
+      ref_id: uuidRule(),
+    },
+  })
   const [bonSaving, setBonSaving] = useState(false)
 
   // Référentiels : articles publiés et dépôts actifs de l'utilisateur.
@@ -314,37 +307,30 @@ export function StocksPage() {
 
   function openBon(mode: MStockBonMode) {
     setBonMode(mode)
-    setBonValues({
+    bonForm.reset({
       ...createEmptyStockBonForm(),
       // Un seul dépôt disponible : le présélectionner pour accélérer la saisie.
       depot_id: depots.length === 1 ? depots[0].depot_id : "",
     })
-    setBonErrors({})
   }
 
   function closeBon() {
     if (bonSaving) return
     setBonMode(null)
-    setBonErrors({})
-    setBonValues(createEmptyStockBonForm())
+    bonForm.reset()
   }
 
   function validateBon(): MStockBonFormErrors {
-    const errors: MStockBonFormErrors = {}
-
-    if (!bonValues.depot_id) errors.depot_id = "Le dépôt est requis."
-
-    const reference = bonValues.ref_id.trim()
-    if (reference && !UUID_REGEX.test(reference)) {
-      errors.ref_id = "Identifiant UUID invalide."
-    }
+    // Valide d'abord le dépôt et la référence via le hook commun.
+    const errors: MStockBonFormErrors = { ...bonForm.validate() }
+    const values = bonForm.values
 
     const lineErrors: Record<number, MStockBonLineError> = {}
-    if (bonValues.lines.length === 0) {
+    if (values.lines.length === 0) {
       errors.lines = "Ajoutez au moins une ligne au bon."
     }
 
-    bonValues.lines.forEach((line, index) => {
+    values.lines.forEach((line, index) => {
       const lineError: MStockBonLineError = {}
       if (!line.article_id) {
         lineError.article_id = "L'article est requis."
@@ -362,6 +348,9 @@ export function StocksPage() {
       errors.lines ??= "Corrigez les lignes signalées en rouge."
     }
 
+    // Publie aussi les erreurs de lignes (non gérées par les règles du hook).
+    bonForm.setErrors(errors)
+
     return errors
   }
 
@@ -369,19 +358,19 @@ export function StocksPage() {
     if (!bonMode) return
 
     const nextErrors = validateBon()
-    setBonErrors(nextErrors)
-    if (hasBonErrors(nextErrors)) {
+    if (hasFormErrors(nextErrors)) {
       toast.error("Formulaire incomplet", {
         description: "Corrigez les champs signalés en rouge.",
       })
       return
     }
 
+    const values = bonForm.values
     const payload: CreateStockBonPayload = {
-      depot_id: bonValues.depot_id,
-      motif: bonValues.motif.trim() || undefined,
-      ref_id: bonValues.ref_id.trim() || undefined,
-      lines: bonValues.lines.map((line) => ({
+      depot_id: values.depot_id,
+      motif: values.motif.trim() || undefined,
+      ref_id: values.ref_id.trim() || undefined,
+      lines: values.lines.map((line) => ({
         article_id: line.article_id,
         qty: Number(normalizeDecimal(line.qty)),
         motif: line.motif.trim() || undefined,
@@ -396,8 +385,7 @@ export function StocksPage() {
           : await stockService.createBonSortie(payload)
       toast.success(envelope.message)
       setBonMode(null)
-      setBonValues(createEmptyStockBonForm())
-      setBonErrors({})
+      bonForm.reset()
       // Le journal est trié par date décroissante : le nouveau bon apparaît en tête.
       setMovementsPage(1)
       setTab("mouvements")
@@ -479,16 +467,14 @@ export function StocksPage() {
               mode={bonMode ?? "entree"}
               formId={BON_FORM_ID}
               showActions={false}
-              values={bonValues}
-              errors={bonErrors}
+              values={bonForm.values}
+              errors={bonForm.errors}
               articles={articles}
               depots={depots}
               optionsLoading={optionsLoading}
               optionsError={optionsError}
               submitting={bonSaving}
-              onChange={(patch) =>
-                setBonValues((previous) => ({ ...previous, ...patch }))
-              }
+              onChange={bonForm.setValues}
               onSubmit={() => void handleBonSubmit()}
               onCancel={closeBon}
             />

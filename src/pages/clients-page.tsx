@@ -9,7 +9,6 @@ import {
   MConfirmDialog,
   MPagination,
   MSearchBar,
-  type MClientFormErrors,
   type MClientFormValues,
 } from "@/components/molecules"
 import { OClientsTable } from "@/components/organisms"
@@ -31,9 +30,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/context/auth-context"
+import { hasFormErrors, useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import { roleLabel } from "@/lib/roles"
-import { validatePhone } from "@/lib/validation"
+import { phoneRule, requiredRule, uuidRule } from "@/lib/validation"
 import * as clientService from "@/services/client.service"
 import type { ApiClient, CreateClientPayload } from "@/types/api"
 
@@ -44,9 +44,6 @@ import type { ApiClient, CreateClientPayload } from "@/types/api"
 
 const PAGE_SIZE = 10
 const CLIENT_FORM_ID = "client-form"
-
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** Convertit un client API en valeurs de formulaire. */
 function toFormValues(client: ApiClient): MClientFormValues {
@@ -76,8 +73,21 @@ export function ClientsPage() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiClient | null>(null)
-  const [values, setValues] = useState<MClientFormValues>(EMPTY_CLIENT_FORM)
-  const [formErrors, setFormErrors] = useState<MClientFormErrors>({})
+  const form = useFormValidation<MClientFormValues>({
+    initialValues: EMPTY_CLIENT_FORM,
+    rules: {
+      client_name: requiredRule("Le nom est requis."),
+      client_telephone: phoneRule(),
+      ...(isSuperadmin
+        ? {
+            point_of_sale_id: [
+              requiredRule("Le point de vente est requis."),
+              uuidRule(),
+            ],
+          }
+        : {}),
+    },
+  })
   const [saving, setSaving] = useState(false)
   // Chargement de la fiche complète (GET /clients/:id) avant édition.
   const [formLoading, setFormLoading] = useState(false)
@@ -141,11 +151,10 @@ export function ClientsPage() {
     detailRequestRef.current += 1
     setFormLoading(false)
     setEditing(null)
-    setValues({
+    form.reset({
       ...EMPTY_CLIENT_FORM,
       point_of_sale_id: user?.point_of_sale_id ?? "",
     })
-    setFormErrors({})
     setFormOpen(true)
   }
 
@@ -154,8 +163,7 @@ export function ClientsPage() {
   async function openEdit(client: ApiClient) {
     const requestId = ++detailRequestRef.current
     setEditing(client)
-    setValues(toFormValues(client))
-    setFormErrors({})
+    form.reset(toFormValues(client))
     setFormOpen(true)
     setFormLoading(true)
 
@@ -163,7 +171,7 @@ export function ClientsPage() {
       const { client: fresh } = await clientService.getClient(client.client_id)
       if (requestId !== detailRequestRef.current) return
       setEditing(fresh)
-      setValues(toFormValues(fresh))
+      form.reset(toFormValues(fresh))
     } catch (err) {
       if (requestId !== detailRequestRef.current) return
       toast.error("Chargement impossible", {
@@ -186,37 +194,19 @@ export function ClientsPage() {
     setFormLoading(false)
     setFormOpen(false)
     setEditing(null)
-    setValues(EMPTY_CLIENT_FORM)
-    setFormErrors({})
-  }
-
-  function validateForm(): MClientFormErrors {
-    const errors: MClientFormErrors = {}
-    if (!values.client_name.trim()) errors.client_name = "Le nom est requis."
-    if (values.client_telephone.trim()) {
-      const phoneError = validatePhone(values.client_telephone, false)
-      if (phoneError) errors.client_telephone = phoneError
-    }
-    if (isSuperadmin) {
-      const pointOfSale = values.point_of_sale_id.trim()
-      if (!pointOfSale) {
-        errors.point_of_sale_id = "Le point de vente est requis."
-      } else if (!UUID_REGEX.test(pointOfSale)) {
-        errors.point_of_sale_id = "Identifiant UUID invalide."
-      }
-    }
-    return errors
+    form.reset(EMPTY_CLIENT_FORM)
   }
 
   async function handleSubmit() {
-    const nextErrors = validateForm()
-    setFormErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) {
+    const nextErrors = form.validate()
+    if (hasFormErrors(nextErrors)) {
       toast.error("Formulaire incomplet", {
         description: "Corrigez les champs signalés en rouge.",
       })
       return
     }
+
+    const values = form.values
 
     // Champs optionnels vidés → `null` pour effacer la valeur existante.
     // Un ADMIN ne peut pas choisir le PO : l'API force le sien.
@@ -341,15 +331,13 @@ export function ClientsPage() {
               <MClientForm
                 formId={CLIENT_FORM_ID}
                 showActions={false}
-                values={values}
-                errors={formErrors}
+                values={form.values}
+                errors={form.errors}
                 submitting={saving}
                 submitLabel={editing ? "Enregistrer" : "Créer"}
                 showPointOfSale={isSuperadmin}
                 pointOfSaleRequired={isSuperadmin}
-                onChange={(patch) =>
-                  setValues((prev) => ({ ...prev, ...patch }))
-                }
+                onChange={form.setValues}
                 onSubmit={() => void handleSubmit()}
                 onCancel={closeForm}
               />

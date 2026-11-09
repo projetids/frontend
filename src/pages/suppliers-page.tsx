@@ -9,7 +9,6 @@ import {
   MSearchBar,
   MSupplierDetails,
   MSupplierForm,
-  type MSupplierFormErrors,
   type MSupplierFormValues,
 } from "@/components/molecules"
 import { OSuppliersTable } from "@/components/organisms"
@@ -31,9 +30,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useAuth } from "@/context/auth-context"
+import { hasFormErrors, useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import { roleLabel } from "@/lib/roles"
-import { validateEmail, validatePhone } from "@/lib/validation"
+import { emailRule, phoneRule, requiredRule } from "@/lib/validation"
 import * as supplierService from "@/services/supplier.service"
 import type { ApiSupplier, CreateSupplierPayload } from "@/types/api"
 
@@ -73,11 +73,14 @@ export function SuppliersPage() {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiSupplier | null>(null)
-  const [values, setValues] = useState<MSupplierFormValues>({
-    ...EMPTY_SUPPLIER_FORM,
-    supplier_number: "",
+  const form = useFormValidation<MSupplierFormValues>({
+    initialValues: EMPTY_SUPPLIER_FORM,
+    rules: {
+      suppliers_name: requiredRule("Le nom est requis."),
+      suppliers_telephone: phoneRule(),
+      suppliers_email: emailRule(),
+    },
   })
-  const [formErrors, setFormErrors] = useState<MSupplierFormErrors>({})
   const [saving, setSaving] = useState(false)
   // Chargement de la fiche complète (GET /suppliers/:id) avant édition.
   const [formLoading, setFormLoading] = useState(false)
@@ -141,8 +144,7 @@ export function SuppliersPage() {
     detailRequestRef.current += 1
     setFormLoading(false)
     setEditing(null)
-    setValues(EMPTY_SUPPLIER_FORM)
-    setFormErrors({})
+    form.reset(EMPTY_SUPPLIER_FORM)
     setFormOpen(true)
   }
 
@@ -151,8 +153,7 @@ export function SuppliersPage() {
   async function openEdit(supplier: ApiSupplier) {
     const requestId = ++detailRequestRef.current
     setEditing(supplier)
-    setValues(toFormValues(supplier))
-    setFormErrors({})
+    form.reset(toFormValues(supplier))
     setFormOpen(true)
     setFormLoading(true)
 
@@ -162,7 +163,7 @@ export function SuppliersPage() {
       )
       if (requestId !== detailRequestRef.current) return
       setEditing(fresh)
-      setValues(toFormValues(fresh))
+      form.reset(toFormValues(fresh))
     } catch (err) {
       if (requestId !== detailRequestRef.current) return
       toast.error("Chargement impossible", {
@@ -185,34 +186,19 @@ export function SuppliersPage() {
     setFormLoading(false)
     setFormOpen(false)
     setEditing(null)
-    setValues(EMPTY_SUPPLIER_FORM)
-    setFormErrors({})
-  }
-
-  function validateForm(): MSupplierFormErrors {
-    const errors: MSupplierFormErrors = {}
-    if (!values.suppliers_name.trim())
-      errors.suppliers_name = "Le nom est requis."
-    if (values.suppliers_telephone.trim()) {
-      const phoneError = validatePhone(values.suppliers_telephone)
-      if (phoneError) errors.suppliers_telephone = phoneError
-    }
-    if (values.suppliers_email.trim()) {
-      const emailError = validateEmail(values.suppliers_email.trim())
-      if (emailError) errors.suppliers_email = emailError
-    }
-    return errors
+    form.reset(EMPTY_SUPPLIER_FORM)
   }
 
   async function handleSubmit() {
-    const nextErrors = validateForm()
-    setFormErrors(nextErrors)
-    if (Object.values(nextErrors).some(Boolean)) {
+    const nextErrors = form.validate()
+    if (hasFormErrors(nextErrors)) {
       toast.error("Formulaire incomplet", {
         description: "Corrigez les champs signalés en rouge.",
       })
       return
     }
+
+    const values = form.values
 
     // Champs optionnels vidés → `null` pour effacer la valeur existante.
     // NOTE : `supplier_number` est généré par le backend : il n'est jamais
@@ -239,7 +225,7 @@ export function SuppliersPage() {
       reload()
     } catch (err) {
       if (err instanceof ApiError && err.code === "CONFLICT") {
-        setFormErrors({ suppliers_name: "Ce fournisseur existe déjà." })
+        form.setErrors({ suppliers_name: "Ce fournisseur existe déjà." })
         toast.error("Enregistrement refusé", {
           description: "Un fournisseur utilise déjà ce nom.",
         })
@@ -349,13 +335,11 @@ export function SuppliersPage() {
               <MSupplierForm
                 formId={SUPPLIER_FORM_ID}
                 showActions={false}
-                values={values}
-                errors={formErrors}
+                values={form.values}
+                errors={form.errors}
                 submitting={saving}
                 submitLabel={editing ? "Enregistrer" : "Créer"}
-                onChange={(patch) =>
-                  setValues((prev) => ({ ...prev, ...patch }))
-                }
+                onChange={form.setValues}
                 onSubmit={() => void handleSubmit()}
                 onCancel={closeForm}
               />
