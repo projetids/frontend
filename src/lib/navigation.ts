@@ -12,6 +12,7 @@ import {
   UserRoundIcon,
   UsersIcon,
   WarehouseIcon,
+  WalletIcon,
 } from "lucide-react"
 import type { TAppSidebarGroup } from "@/components/templates/t-app-sidebar"
 
@@ -78,6 +79,12 @@ export const appNavigation: TAppSidebarGroup[] = [
         label: "Achats",
         icon: ShoppingCartIcon,
         href: "/achats",
+        roles: ["superadmin", "admin"],
+      },
+      {
+        label: "Ventes",
+        icon: WalletIcon,
+        href: "/ventes",
         roles: ["superadmin", "admin"],
       },
       {

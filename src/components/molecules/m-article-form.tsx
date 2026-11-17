@@ -225,7 +225,7 @@ export function MArticleForm({
         <div className="flex flex-col gap-0.5">
           <h4 className="text-sm font-medium">Tarification</h4>
           <p className="text-xs text-muted-foreground">
-            Montants en FCFA. Laissez à 0 si l&apos;article n&apos;est pas
+            Montants en Ariary. Laissez à 0 si l&apos;article n&apos;est pas
             encore valorisé.
           </p>
         </div>

@@ -839,3 +839,202 @@ export type UpdatePermissionPayload = Partial<{
 export type UpdateUserPermissionsPayload = {
   flags: Record<string, boolean>
 }
+
+// ——— Ventes (module /ventes) ———
+
+/** Enum `commande_vente_status_enum` de l'API. */
+export const COMMANDE_VENTE_STATUSES = [
+  "BROUILLON",
+  "VALIDEE",
+  "LIVREE",
+  "FACTUREE",
+  "CLOTUREE",
+  "ANNULEE",
+] as const
+export type ApiCommandeVenteStatus =
+  (typeof COMMANDE_VENTE_STATUSES)[number]
+
+/** Enum `bon_livraison_status_enum` de l'API. */
+export const BON_LIVRAISON_STATUSES = ["VALIDE", "ANNULE"] as const
+export type ApiBonLivraisonStatus =
+  (typeof BON_LIVRAISON_STATUSES)[number]
+
+/** Enum `vente_comptant_status_enum` de l'API. */
+export const VENTE_COMPTANT_STATUSES = ["VALIDEE", "ANNULEE"] as const
+export type ApiVenteComptantStatus =
+  (typeof VENTE_COMPTANT_STATUSES)[number]
+
+/** Enum `mode_paiement_enum` de l'API. */
+export const MODE_PAIEMENT = [
+  "ESPECES",
+  "MOBILE_MONEY",
+  "CARTE",
+  "VIREMENT",
+  "CHEQUE",
+  "AUTRE",
+] as const
+export type ApiModePaiement = (typeof MODE_PAIEMENT)[number]
+
+/** Ligne d'une commande vente (BCV, 0 impact stock). */
+export type ApiCommandeVenteLigne = {
+  ligne_id: string
+  commande_id: string
+  article_id: string
+  qty_ordered: string
+  qty_delivered: string
+  unit_price_ht: string
+}
+
+/** Bon de commande vente — engagement, sans impact stock. */
+export type ApiCommandeVente = {
+  commande_id: string
+  commande_code: string
+  client_id?: string | null
+  supplier_id?: string | null
+  point_of_sale_id: string
+  status: ApiCommandeVenteStatus
+  notes?: string | null
+  created_by?: string | null
+  validated_at?: string | null
+  created_at?: string
+  updated_at?: string
+  /** Présent uniquement sur GET /ventes/commandes/:id. */
+  lignes?: ApiCommandeVenteLigne[]
+}
+
+/** Ligne d'un bon de livraison (BL → SORTIE stock). */
+export type ApiBonLivraisonLigne = {
+  ligne_id: string
+  livraison_id: string
+  article_id: string
+  commande_ligne_id?: string | null
+  qty_delivered: string
+  unit_price_ht: string
+}
+
+/** Bon de livraison — SORTIE stock dépôt source. */
+export type ApiBonLivraison = {
+  livraison_id: string
+  livraison_code: string
+  commande_id?: string | null
+  client_id?: string | null
+  depot_id: string
+  point_of_sale_id: string
+  status: ApiBonLivraisonStatus
+  notes?: string | null
+  created_by?: string | null
+  created_at?: string
+  /** Présent uniquement sur GET /ventes/livraisons/:id. */
+  lignes?: ApiBonLivraisonLigne[]
+}
+
+/** Ligne d'une vente au comptant (VC → SORTIE stock, BL implicite). */
+export type ApiVenteComptantLigne = {
+  ligne_id: string
+  vente_id: string
+  article_id: string
+  qty: string
+  unit_price_ht: string
+}
+
+/** Vente au comptant — encaissement + SORTIE stock à validation. */
+export type ApiVenteComptant = {
+  vente_id: string
+  vente_code: string
+  client_id?: string | null
+  depot_id: string
+  point_of_sale_id: string
+  status: ApiVenteComptantStatus
+  mode_paiement: ApiModePaiement
+  montant_total_ht: string
+  montant_ttc: string
+  montant_encaisse: string
+  notes?: string | null
+  created_by?: string | null
+  created_at?: string
+  /** Présent uniquement sur GET /ventes/comptant/:id. */
+  lignes?: ApiVenteComptantLigne[]
+}
+
+/** Réponse légère de `GET /clients/select` (sélecteurs de vente). */
+export type ApiClientOptionVente = {
+  client_id: string
+  client_name: string
+  client_telephone?: string | null
+  point_of_sale_id: string
+}
+
+/** Filtres communs des listes de ventes (paginées et scopées POS). */
+export type VentesListQuery = {
+  page?: number
+  limit?: number
+  point_of_sale_id?: string
+  client_id?: string
+  commande_id?: string
+}
+
+export type CreateCommandeVenteLinePayload = {
+  article_id: string
+  qty_ordered: number
+  unit_price_ht?: number
+}
+
+export type CreateCommandeVentePayload = {
+  client_id?: string
+  point_of_sale_id?: string
+  notes?: string
+  lines: CreateCommandeVenteLinePayload[]
+}
+
+export type CreateBonLivraisonLinePayload = {
+  article_id: string
+  qty_delivered: number
+  commande_ligne_id?: string
+  unit_price_ht?: number
+}
+
+export type CreateBonLivraisonPayload = {
+  commande_id?: string
+  client_id?: string
+  depot_id: string
+  point_of_sale_id?: string
+  notes?: string
+  lines: CreateBonLivraisonLinePayload[]
+}
+
+export type CreateVenteComptantLinePayload = {
+  article_id: string
+  qty: number
+  unit_price_ht?: number
+}
+
+export type CreateVenteComptantPayload = {
+  client_id?: string
+  depot_id: string
+  point_of_sale_id?: string
+  mode_paiement?: ApiModePaiement
+  montant_ttc?: number
+  montant_encaisse?: number
+  notes?: string
+  lines: CreateVenteComptantLinePayload[]
+}
+
+/** Filtres des rapports de ventes (CA BL + ventes comptant validées). */
+export type VentesReportQuery = {
+  date_from?: string
+  date_to?: string
+  point_of_sale_id?: string
+  article_families_id?: string
+}
+
+/**
+ * Ligne agrégée d'un rapport de vente. `total_qty` et `total_ht` proviennent
+ * de `SUM(...)` : PostgreSQL les renvoie en chaînes décimales.
+ */
+export type ApiVenteReportRow = {
+  article_id?: string
+  article_name?: string
+  article_families_id?: number | string
+  total_qty: string | number
+  total_ht: string | number
+}

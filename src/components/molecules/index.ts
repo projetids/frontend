@@ -137,3 +137,9 @@ export {
   type MAchatDetailLine,
   type MAchatDocumentDetailsProps,
 } from "./m-achat-document-details"
+export {
+  MVenteDocumentDetails,
+  type MVenteDetailField,
+  type MVenteDetailLine,
+  type MVenteDocumentDetailsProps,
+} from "./m-vente-document-details"

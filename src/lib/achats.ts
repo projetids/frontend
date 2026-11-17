@@ -98,14 +98,14 @@ export function formatAchatQuantity(value?: string | number | null): string {
   }).format(parsed)
 }
 
-/** Montant lisible avec devise (FCFA), « — » si absent ou invalide. */
+/** Montant lisible avec devise (Ariary), « — » si absent ou invalide. */
 export function formatAchatMoney(value?: string | number | null): string {
   const parsed = toNumber(value)
   if (parsed === null) return "—"
   return `${new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(parsed)} FCFA`
+  }).format(parsed)} Ariary`
 }
 
 /** Date courte française, « — » si la valeur est absente ou invalide. */

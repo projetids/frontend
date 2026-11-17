@@ -45,3 +45,19 @@ export {
   OAchatsReportTable,
   type OAchatsReportTableProps,
 } from "./o-achats-report-table"
+export {
+  OCommandesVenteTable,
+  type OCommandesVenteTableProps,
+} from "./o-commandes-vente-table"
+export {
+  OLivraisonsVenteTable,
+  type OLivraisonsVenteTableProps,
+} from "./o-livraisons-vente-table"
+export {
+  OVentesComptantTable,
+  type OVentesComptantTableProps,
+} from "./o-ventes-comptant-table"
+export {
+  OVentesReportTable,
+  type OVentesReportTableProps,
+} from "./o-ventes-report-table"

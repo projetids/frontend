@@ -62,14 +62,14 @@ export function formatArticleQuantity(value?: string | number | null): string {
   }).format(parsed)
 }
 
-/** Montant lisible avec devise (FCFA), « — » si absent ou invalide. */
+/** Montant lisible avec devise (Ariary), « — » si absent ou invalide. */
 export function formatArticlePrice(value?: string | number | null): string {
   const parsed = toNumber(value)
   if (parsed === null) return "—"
   return `${new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
-  }).format(parsed)} FCFA`
+  }).format(parsed)} Ariary`
 }
 
 /** Taux de TVA lisible : « 18 % ». */
