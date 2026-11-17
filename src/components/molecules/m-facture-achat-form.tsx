@@ -152,7 +152,6 @@ export function MFactureAchatForm({
             label="Réf. facture fournisseur"
             value={values.supplier_invoice_ref}
             error={errors.supplier_invoice_ref}
-            description="Optionnel : numéro figurant sur la facture du fournisseur."
             placeholder="FV-FRN-00123"
             onChange={(event) =>
               onChange({ supplier_invoice_ref: event.target.value })
@@ -192,7 +191,6 @@ export function MFactureAchatForm({
               onCommandeChange?.(commande_id)
             }}
             options={commandeOptions}
-            description="Optionnel : rapproche la facture d'un bon de commande."
             error={errors.commande_id}
             disabled={disabled}
             searchPlaceholder="Rechercher une commande…"
@@ -236,7 +234,7 @@ export function MFactureAchatForm({
         onChange={(lines) => onChange({ lines })}
         disabled={disabled}
         optionsLoading={optionsLoading}
-        qtyLabel="Quantité facturée"
+        qtyLabel="Qté facturée"
         addLabel="Ajouter une ligne"
       />
 

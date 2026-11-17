@@ -225,7 +225,6 @@ function CommandeVenteForm({
               onChange({ client_id: value === NONE_OPTION ? "" : value })
             }
             options={clientOptions}
-            description="Optionnel : laisse la commande sans client identifié."
             error={errors.client_id}
             disabled={disabled}
             searchPlaceholder="Rechercher un client…"
@@ -658,7 +657,6 @@ function VenteComptantForm({
               onChange({ client_id: value === NONE_OPTION ? "" : value })
             }
             options={clientOptions}
-            description="Optionnel : vente sans client identifié."
             error={errors.client_id}
             disabled={disabled}
             searchPlaceholder="Rechercher un client…"

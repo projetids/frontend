@@ -118,7 +118,6 @@ export function MCommandeAchatForm({
             type="date"
             value={values.expected_date}
             error={errors.expected_date}
-            description="Optionnel : date souhaitée de réception."
             onChange={(event) =>
               onChange({ expected_date: event.target.value })
             }
@@ -164,7 +163,7 @@ export function MCommandeAchatForm({
         onChange={(lines) => onChange({ lines })}
         disabled={disabled}
         optionsLoading={optionsLoading}
-        qtyLabel="Quantité commandée"
+        qtyLabel="Qté commandée"
         addLabel="Ajouter une ligne"
       />
 

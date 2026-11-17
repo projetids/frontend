@@ -110,7 +110,7 @@ export function MArticleForm({
       ? familiesError
       : familyOptions.length === 0
         ? "Aucune famille disponible : créez d'abord une famille d'articles."
-        : "Chaque article appartient à une seule famille."
+        : ""
 
   return (
     <form

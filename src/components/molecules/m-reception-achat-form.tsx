@@ -135,7 +135,6 @@ export function MReceptionAchatForm({
               onCommandeChange?.(commande_id)
             }}
             options={commandeOptions}
-            description="Optionnel : rattache la réception à un bon de commande."
             error={errors.commande_id}
             disabled={disabled}
             searchPlaceholder="Rechercher une commande…"
@@ -207,7 +206,7 @@ export function MReceptionAchatForm({
         onChange={(lines) => onChange({ lines })}
         disabled={disabled}
         optionsLoading={optionsLoading}
-        qtyLabel="Quantité reçue"
+        qtyLabel="Qté reçue"
         addLabel="Ajouter une ligne"
       />
 
