@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
 import { MConfirmDialog, MField, MProfileDetails } from "@/components/molecules"
@@ -39,6 +39,25 @@ function initials(name: string): string {
 
 export function ProfilePage() {
   const { user, updateUser } = useAuth()
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const { user: fresh } = await authService.getProfile()
+        if (cancelled) return
+        updateUser(fresh)
+      } catch {
+        if (cancelled) return
+        // Silencieux : on conserve l'utilisateur mémorisé.
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [updateUser])
+
   const profileForm = useFormValidation<ProfileFormValues>({
     initialValues: {
       name: user?.user_name ?? "",
@@ -52,6 +71,16 @@ export function ProfilePage() {
     },
   })
   const [savingProfile, setSavingProfile] = useState(false)
+
+  useEffect(() => {
+    if (user) {
+      profileForm.reset({
+        name: user.user_name,
+        mail: user.user_mail,
+        phone: user.user_phone ?? "",
+      })
+    }
+  }, [user, profileForm])
   const passwordForm = useFormValidation<PasswordFormValues>({
     initialValues: { password: "", confirm: "" },
     rules: {

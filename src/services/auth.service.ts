@@ -210,3 +210,54 @@ export async function reactivateCaisier(user_id: string) {
   )
   return { envelope, user: envelope.data }
 }
+
+/** POST /auth/caisiers (admin) — crée un caissier avec mot de passe temporaire. */
+export async function createCashier(payload: {
+  user_name: string
+  user_mail: string
+  user_phone?: string
+  point_of_sale_id?: string
+}) {
+  const envelope = await apiRequest<ApiUser & { temporary_password?: string }>(
+    "/auth/caisiers",
+    { method: "POST", body: payload },
+  )
+  return { envelope, user: envelope.data, temporary_password: envelope.data.temporary_password }
+}
+
+/** POST /auth/change-password (auth) — change le mot de passe temporaire/actuel. */
+export async function changePassword(temporary_password: string, new_password: string) {
+  const envelope = await apiRequest<null>("/auth/change-password", {
+    method: "POST",
+    body: { temporary_password, new_password },
+  })
+  return { envelope, message: envelope.message }
+}
+
+/** PUT /auth/admins/:id/reject (superadmin) — rejette une demande admin. */
+export async function rejectAdmin(user_id: string) {
+  const envelope = await apiRequest<ApiUser>(
+    `/auth/admins/${encodeURIComponent(user_id)}/reject`,
+    { method: "PUT" },
+  )
+  return { envelope, user: envelope.data }
+}
+
+/** PUT /auth/caisiers/:id/reject (admin) — rejette un caissier. */
+export async function rejectCaisier(user_id: string) {
+  const envelope = await apiRequest<ApiUser>(
+    `/auth/caisiers/${encodeURIComponent(user_id)}/reject`,
+    { method: "PUT" },
+  )
+  return { envelope, user: envelope.data }
+}
+
+/** GET /auth/admins (superadmin) — liste paginée des admins. */
+export async function getAdmins(query: { page?: number; limit?: number; status?: string; search?: string } = {}) {
+  const envelope = await apiRequest<ApiUser[]>("/auth/admins", { query })
+  return {
+    envelope,
+    users: envelope.data,
+    meta: envelope.meta ?? { page: 1, limit: query.limit ?? 20, total: envelope.data.length },
+  }
+}

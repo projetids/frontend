@@ -53,9 +53,18 @@ export type ApiUser = {
   user_status?: ApiUserStatus
   /** Point de vente de rattachement (admins et caissiers). */
   point_of_sale_id?: string | null
+  /** Point de vente résolu (renvoyé par GET /auth/profile). */
+  point_of_sale?: {
+    id: string
+    point_of_sale_code: string
+    name: string
+  } | null
   created_by?: string | null
   created_at?: string
   updated_at?: string
+  password_changed_at?: string | null
+  /** Indique si l'utilisateur doit changer son mot de passe (première connexion). */
+  must_change_password?: boolean
 }
 
 // ——— Payloads ———

@@ -108,9 +108,26 @@ export function MProfileDetails({ user }: MProfileDetailsProps) {
       <DetailRow
         icon={Store}
         label="Point de vente"
-        value={user.point_of_sale_id}
-        mono
+        value={
+          user.point_of_sale
+            ? `${user.point_of_sale.name} (${user.point_of_sale.point_of_sale_code})`
+            : user.point_of_sale_id
+        }
       />
+      <DetailRow
+        icon={CalendarClock}
+        label="Mot de passe modifié le"
+        value={formatDateTime(user.password_changed_at ?? undefined)}
+      />
+      <DetailRow icon={BadgeCheck} label="Changement de mot de passe requis">
+        {typeof user.must_change_password === "boolean" ? (
+          <AtomBadge variant={user.must_change_password ? "destructive" : "secondary"}>
+            {user.must_change_password ? "Oui" : "Non"}
+          </AtomBadge>
+        ) : (
+          "—"
+        )}
+      </DetailRow>
       <DetailRow
         icon={UserRoundPlus}
         label="Créé par"
