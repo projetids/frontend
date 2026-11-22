@@ -80,15 +80,6 @@ export function MSupplierForm({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <MField
-            label="Numéro"
-            id="supplierNumber"
-            value={values.supplier_number}
-            error={errors.supplier_number}
-            placeholder="Généré automatiquement"
-            autoComplete="off"
-            disabled
-          />
-          <MField
             label="Nom du fournisseur"
             id="supplierName"
             value={values.suppliers_name}

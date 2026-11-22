@@ -119,7 +119,10 @@ export async function apiRequest<T>(
 ): Promise<ApiEnvelope<T>> {
   const { method = "GET", body, query, auth = true } = options
 
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData
+  const headers: Record<string, string> = isFormData
+    ? {}
+    : { "Content-Type": "application/json" }
   const token = getAccessToken()
   if (auth && token) headers.Authorization = `Bearer ${token}`
 
@@ -129,7 +132,12 @@ export async function apiRequest<T>(
     return fetch(buildUrl(path, query), {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body:
+        body === undefined
+          ? undefined
+          : isFormData
+            ? (body as FormData)
+            : JSON.stringify(body),
     })
   }
 

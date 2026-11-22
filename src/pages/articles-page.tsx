@@ -4,6 +4,7 @@ import {
   PackageIcon,
   PencilLineIcon,
   PlusIcon,
+  UploadIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
@@ -16,7 +17,7 @@ import {
   MSearchBar,
   type MArticleFormValues,
 } from "@/components/molecules"
-import { OArticlesTable } from "@/components/organisms"
+import { OArticlesTable, OExcelImportDialog } from "@/components/organisms"
 import {
   Card,
   CardAction,
@@ -60,9 +61,11 @@ import {
 } from "@/lib/validation"
 import * as articleFamilyService from "@/services/article-family.service"
 import * as articleService from "@/services/article.service"
+import * as pointOfSaleService from "@/services/point-of-sale.service"
 import type {
   ApiArticle,
   ApiArticleFamily,
+  ApiPointOfSale,
   CreateArticlePayload,
 } from "@/types/api"
 import type { FormRules } from "@/hooks/use-form-validation"
@@ -171,6 +174,12 @@ export function ArticlesPage() {
 
   const [toDelete, setToDelete] = useState<ApiArticle | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Import Excel (SUPERADMIN : point de vente à choisir dans la liste).
+  const [importOpen, setImportOpen] = useState(false)
+  const [importPosId, setImportPosId] = useState("")
+  const [posOptions, setPosOptions] = useState<ApiPointOfSale[]>([])
+  const [posOptionsLoading, setPosOptionsLoading] = useState(false)
 
   // Chargement initial des familles (sélecteurs et noms du tableau).
   useEffect(() => {
@@ -387,6 +396,24 @@ export function ArticlesPage() {
     }
   }
 
+  function openImport() {
+    setImportOpen(true)
+    if (!isSuperadmin || posOptions.length > 0) return
+    setPosOptionsLoading(true)
+    pointOfSaleService
+      .listPointOfSaleOptions()
+      .then(({ options }) => setPosOptions(options))
+      .catch((err) => {
+        toast.error("Points de vente indisponibles", {
+          description:
+            err instanceof ApiError
+              ? err.details || err.message
+              : "Erreur inattendue",
+        })
+      })
+      .finally(() => setPosOptionsLoading(false))
+  }
+
   async function handleDelete() {
     if (!toDelete) return
     setDeleting(true)
@@ -564,6 +591,55 @@ export function ArticlesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Import Excel */}
+      <OExcelImportDialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open)
+          if (!open) setImportPosId("")
+        }}
+        title="Importer des articles (Excel)"
+        description="Fichier .xls/.xlsx, ligne 1 = en-têtes. Colonnes requises : article_name, article_unit, article_families_id."
+        entityLabel="article(s)"
+        onImport={(file) =>
+          articleService.importArticles(
+            file,
+            isSuperadmin ? importPosId : undefined
+          )
+        }
+        onImported={reload}
+        canSubmit={!isSuperadmin || importPosId !== ""}
+        extraFields={
+          isSuperadmin ? (
+            <div className="grid gap-1.5">
+              <label className="text-sm font-medium">Point de vente</label>
+              <Select
+                value={importPosId}
+                onValueChange={setImportPosId}
+                disabled={posOptionsLoading}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={
+                      posOptionsLoading
+                        ? "Chargement…"
+                        : "Sélectionnez un point de vente"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {posOptions.map((pos) => (
+                    <SelectItem key={pos.id} value={pos.id}>
+                      {pos.name} ({pos.point_of_sale_code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null
+        }
+      />
+
       <Card>
         <CardHeader>
           <CardTitle>Catalogue articles</CardTitle>
@@ -572,13 +648,23 @@ export function ArticlesPage() {
             par famille et statut, puis modifiez ou supprimez un article.
           </CardDescription>
           <CardAction>
-            <AtomButton
-              iconLeft={PlusIcon}
-              onClick={openCreate}
-              disabled={saving || deleting}
-            >
-              Nouvel article
-            </AtomButton>
+            <div className="flex gap-2">
+              <AtomButton
+                iconLeft={UploadIcon}
+                variant="outline"
+                onClick={openImport}
+                disabled={saving || deleting}
+              >
+                Importer Excel
+              </AtomButton>
+              <AtomButton
+                iconLeft={PlusIcon}
+                onClick={openCreate}
+                disabled={saving || deleting}
+              >
+                Nouvel article
+              </AtomButton>
+            </div>
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

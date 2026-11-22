@@ -39,7 +39,7 @@ export const EMPTY_ARTICLE_FORM: MArticleFormValues = {
   is_publish: true,
   article_code: "",
   article_name: "",
-  article_unit: "pièce",
+  article_unit: "piece",
   article_families_id: "",
   article_barcode: "",
   article_tva_rate: "0",

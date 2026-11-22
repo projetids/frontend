@@ -41,6 +41,17 @@ export {
 } from "./m-depot-form"
 export { MDepotDetails, type MDepotDetailsProps } from "./m-depot-details"
 export {
+  EMPTY_POINT_OF_SALE_FORM,
+  MPointOfSaleForm,
+  type MPointOfSaleFormErrors,
+  type MPointOfSaleFormProps,
+  type MPointOfSaleFormValues,
+} from "./m-point-of-sale-form"
+export {
+  MPointOfSaleDetails,
+  type MPointOfSaleDetailsProps,
+} from "./m-point-of-sale-details"
+export {
   EMPTY_ARTICLE_FORM,
   MArticleForm,
   type MArticleFormErrors,

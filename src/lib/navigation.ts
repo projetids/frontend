@@ -8,6 +8,7 @@ import {
   PackageIcon,
   ShieldCheckIcon,
   ShoppingCartIcon,
+  StoreIcon,
   TruckIcon,
   UserRoundIcon,
   UsersIcon,
@@ -33,6 +34,12 @@ export const appNavigation: TAppSidebarGroup[] = [
   {
     label: "Gestion",
     items: [
+      {
+        label: "Points de vente",
+        icon: StoreIcon,
+        href: "/point-of-sales",
+        roles: ["superadmin", "admin"],
+      },
       {
         label: "Fournisseurs",
         icon: TruckIcon,

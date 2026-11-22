@@ -3,6 +3,7 @@ import {
   Loader2Icon,
   PencilLineIcon,
   PlusIcon,
+  UploadIcon,
   WarehouseIcon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -16,7 +17,7 @@ import {
   MSearchBar,
   type MDepotFormValues,
 } from "@/components/molecules"
-import { ODepotsTable } from "@/components/organisms"
+import { ODepotsTable, OExcelImportDialog } from "@/components/organisms"
 import {
   Card,
   CardAction,
@@ -52,7 +53,9 @@ import {
 import { roleLabel } from "@/lib/roles"
 import { requiredRule, uuidRule } from "@/lib/validation"
 import * as depotService from "@/services/depot.service"
-import type { ApiDepot, CreateDepotPayload } from "@/types/api"
+import * as importService from "@/services/import.service"
+import * as pointOfSaleService from "@/services/point-of-sale.service"
+import type { ApiDepot, ApiPointOfSale, CreateDepotPayload } from "@/types/api"
 
 // Gestion des dépôts (module API /depots) : liste paginée et recherchable,
 // création et modification dans une modal, suppression confirmée. Les admins
@@ -88,6 +91,11 @@ export function DepotsPage() {
   const [error, setError] = useState<string | null>(null)
   // Incrémenté pour relancer le chargement (bouton « Réessayer », action réussie).
   const [reloadKey, setReloadKey] = useState(0)
+
+  const [importOpen, setImportOpen] = useState(false)
+  const [importPosId, setImportPosId] = useState("")
+  const [posOptions, setPosOptions] = useState<ApiPointOfSale[]>([])
+  const [posOptionsLoading, setPosOptionsLoading] = useState(false)
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiDepot | null>(null)
@@ -164,6 +172,24 @@ export function DepotsPage() {
   const reload = useCallback(() => {
     setReloadKey((key) => key + 1)
   }, [])
+
+  function openImport() {
+    setImportOpen(true)
+    if (!isSuperadmin || posOptions.length > 0) return
+    setPosOptionsLoading(true)
+    pointOfSaleService
+      .listPointOfSaleOptions()
+      .then(({ options }) => setPosOptions(options))
+      .catch((err) => {
+        toast.error("Points de vente indisponibles", {
+          description:
+            err instanceof ApiError
+              ? err.details || err.message
+              : "Erreur inattendue",
+        })
+      })
+      .finally(() => setPosOptionsLoading(false))
+  }
 
   function openCreate() {
     detailRequestRef.current += 1
@@ -440,13 +466,23 @@ export function DepotsPage() {
             modifiez ou supprimez un dépôt depuis le tableau.
           </CardDescription>
           <CardAction>
-            <AtomButton
-              iconLeft={PlusIcon}
-              onClick={openCreate}
-              disabled={saving || deleting}
-            >
-              Nouveau dépôt
-            </AtomButton>
+            <div className="flex gap-2">
+              <AtomButton
+                iconLeft={UploadIcon}
+                variant="outline"
+                onClick={openImport}
+                disabled={saving || deleting}
+              >
+                Importer Excel
+              </AtomButton>
+              <AtomButton
+                iconLeft={PlusIcon}
+                onClick={openCreate}
+                disabled={saving || deleting}
+              >
+                Nouveau dépôt
+              </AtomButton>
+            </div>
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -506,6 +542,56 @@ export function DepotsPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Import Excel */}
+      <OExcelImportDialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open)
+          if (!open) setImportPosId("")
+        }}
+        title="Importer des dépôts (Excel)"
+        description="Fichier .xls/.xlsx, ligne 1 = en-têtes. Colonnes : depot_name (requis), depot_address, depot_description, is_active."
+        entityLabel="dépôt(s)"
+        onImport={(file) =>
+          importService.importEntity(
+            "depots",
+            file,
+            isSuperadmin ? importPosId : undefined
+          )
+        }
+        onImported={reload}
+        canSubmit={!isSuperadmin || importPosId !== ""}
+        extraFields={
+          isSuperadmin ? (
+            <div className="grid gap-1.5">
+              <label className="text-sm font-medium">Point de vente</label>
+              <Select
+                value={importPosId}
+                onValueChange={setImportPosId}
+                disabled={posOptionsLoading}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={
+                      posOptionsLoading
+                        ? "Chargement…"
+                        : "Sélectionnez un point de vente"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {posOptions.map((pos) => (
+                    <SelectItem key={pos.id} value={pos.id}>
+                      {pos.name} ({pos.point_of_sale_code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null
+        }
+      />
     </div>
   )
 }

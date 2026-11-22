@@ -192,6 +192,8 @@ Réponse : utilisateur courant (jamais de `user_password`)
 { "data": { "user_id": "<uuid>", "user_name": "Jean Dupont", "user_mail": "...", "role": "cashier" }, ... }
 ```
 
+Erreurs : `401` (non authentifié), `404` (`NOT_FOUND`). Si la récupération du profil échoue (réseau ou erreur serveur), le front déconnecte l'utilisateur.
+
 ### 4.11 PATCH `/auth/profile` (auth)
 
 Body : champs optionnels `{ user_name?, user_mail?, user_password?, user_phone? }` → `data` : utilisateur mis à jour.

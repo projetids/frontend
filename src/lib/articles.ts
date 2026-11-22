@@ -5,25 +5,8 @@ import { DECIMAL_REGEX } from "@/lib/validation"
 // L'API renvoie les montants et quantités sous forme de chaînes décimales.
 
 export const ARTICLE_UNIT_LABELS: Record<ApiArticleUnit, string> = {
-  pièce: "Pièce",
+  piece: "Pièce",
   bouteille: "Bouteille",
-  bac: "Bac",
-  bocal: "Bocal",
-  boîte: "Boîte",
-  botte: "Botte",
-  carafe: "Carafe",
-  course: "Course",
-  fft: "FFT",
-  grs: "Grs",
-  kg: "Kg",
-  litre: "Litre",
-  "mètre cube": "Mètre cube",
-  paquet: "Paquet",
-  portion: "Portion",
-  pot: "Pot",
-  sac: "Sac",
-  sachet: "Sachet",
-  seau: "Seau",
 }
 
 export const ARTICLE_UNIT_OPTIONS = (

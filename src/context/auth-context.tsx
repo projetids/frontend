@@ -17,7 +17,7 @@ import {
   setSession,
   setUser,
 } from "@/lib/token-store"
-import { ApiError, refreshAccessToken } from "@/lib/api-client"
+import { refreshAccessToken } from "@/lib/api-client"
 import type { LoginPayload, RegisterPayload, ApiUser } from "@/types/api"
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated"
@@ -38,14 +38,6 @@ function asUser(value: unknown): ApiUser | null {
   return value && typeof value === "object" && "user_id" in value
     ? (value as ApiUser)
     : null
-}
-
-/** Seule une réponse d'authentification invalide doit invalider la session. */
-function isAuthError(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    (error.status === 401 || error.code === "UNAUTHORIZED")
-  )
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -80,22 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return
         setCurrentUser(profile)
         setStatus("authenticated")
-      } catch (error) {
+      } catch {
         if (cancelled) return
-        // Un incident réseau ou serveur ne doit pas déconnecter : la session
-        // (refresh token 7 jours) reste valable, on repart de l'utilisateur
-        // mémorisé jusqu'au prochain appel réussi.
-        if (!isAuthError(error)) {
-          const cached = asUser(getUser())
-          if (cached) {
-            setThisUser(cached)
-            setStatus("authenticated")
-          } else {
-            setStatus("unauthenticated")
-          }
-          return
-        }
+        // Si on n'arrive pas à récupérer le profil, on déconnecte l'utilisateur :
+        // la session locale est purgée et l'état passe à `unauthenticated`.
         clearSession()
+        setCurrentUser(null)
         setStatus("unauthenticated")
       }
     }

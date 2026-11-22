@@ -83,15 +83,6 @@ export function MDepotForm({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <MField
-            label="Code du dépôt"
-            id="depotCode"
-            value={values.depot_code}
-            error={errors.depot_code}
-            placeholder="Généré automatiquement"
-            autoComplete="off"
-            disabled
-          />
-          <MField
             label="Nom du dépôt"
             id="depotName"
             value={values.depot_name}

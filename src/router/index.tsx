@@ -3,6 +3,7 @@ import {
   ArticleFamiliesPage,
   ArticlesPage,
   ClientsPage,
+  PointOfSalesPage,
   DepotsPage,
   HomePage,
   ProfilePage,
@@ -102,6 +103,11 @@ export const router = createBrowserRouter([
           {
             path: "/clients",
             element: <ClientsPage />,
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/point-of-sales",
+            element: <PointOfSalesPage />,
             handle: { roles: managementRoles },
           },
           {

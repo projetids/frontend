@@ -4,6 +4,7 @@ import {
   Loader2Icon,
   PencilLineIcon,
   PlusIcon,
+  UploadIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
@@ -16,7 +17,7 @@ import {
   MSearchBar,
   type MArticleFamilyFormValues,
 } from "@/components/molecules"
-import { OArticleFamiliesTable } from "@/components/organisms"
+import { OArticleFamiliesTable, OExcelImportDialog } from "@/components/organisms"
 import {
   Card,
   CardAction,
@@ -40,6 +41,7 @@ import { ApiError } from "@/lib/api-client"
 import { roleLabel } from "@/lib/roles"
 import { requiredRule } from "@/lib/validation"
 import * as articleFamilyService from "@/services/article-family.service"
+import * as importService from "@/services/import.service"
 import type { ApiArticleFamily } from "@/types/api"
 
 // Gestion des familles d'articles (module API /article-families) : liste
@@ -66,6 +68,8 @@ export function ArticleFamiliesPage() {
   const [error, setError] = useState<string | null>(null)
   // Incrémenté pour relancer le chargement (bouton « Réessayer », action réussie).
   const [reloadKey, setReloadKey] = useState(0)
+
+  const [importOpen, setImportOpen] = useState(false)
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiArticleFamily | null>(null)
@@ -408,13 +412,23 @@ export function ArticleFamiliesPage() {
             depuis le tableau.
           </CardDescription>
           <CardAction>
-            <AtomButton
-              iconLeft={PlusIcon}
-              onClick={openCreate}
-              disabled={saving || deleting}
-            >
-              Nouvelle famille
-            </AtomButton>
+            <div className="flex gap-2">
+              <AtomButton
+                iconLeft={UploadIcon}
+                variant="outline"
+                onClick={() => setImportOpen(true)}
+                disabled={saving || deleting}
+              >
+                Importer Excel
+              </AtomButton>
+              <AtomButton
+                iconLeft={PlusIcon}
+                onClick={openCreate}
+                disabled={saving || deleting}
+              >
+                Nouvelle famille
+              </AtomButton>
+            </div>
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -451,6 +465,19 @@ export function ArticleFamiliesPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Import Excel */}
+      <OExcelImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title="Importer des familles d'articles (Excel)"
+        description="Fichier .xls/.xlsx, ligne 1 = en-têtes. Colonne : article_families_name (requis)."
+        entityLabel="famille(s)"
+        onImport={(file) =>
+          importService.importEntity("article-families", file)
+        }
+        onImported={reload}
+      />
     </div>
   )
 }

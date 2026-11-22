@@ -7,6 +7,10 @@ export {
   type OArticleFamiliesTableProps,
 } from "./o-article-families-table"
 export { ODepotsTable, type ODepotsTableProps } from "./o-depots-table"
+export {
+  OPointOfSalesTable,
+  type OPointOfSalesTableProps,
+} from "./o-point-of-sales-table"
 export { OArticlesTable, type OArticlesTableProps } from "./o-articles-table"
 export { OClientsTable, type OClientsTableProps } from "./o-clients-table"
 export {
@@ -61,3 +65,9 @@ export {
   OVentesReportTable,
   type OVentesReportTableProps,
 } from "./o-ventes-report-table"
+export {
+  OExcelImportDialog,
+  type ExcelImportError,
+  type ExcelImportResponse,
+  type OExcelImportDialogProps,
+} from "./o-excel-import-dialog"

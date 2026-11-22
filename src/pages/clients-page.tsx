@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Loader2Icon, PencilLineIcon, PlusIcon, UsersIcon } from "lucide-react"
+import { Loader2Icon, PencilLineIcon, PlusIcon, UploadIcon, UsersIcon } from "lucide-react"
 import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
 import {
@@ -11,7 +11,7 @@ import {
   MSearchBar,
   type MClientFormValues,
 } from "@/components/molecules"
-import { OClientsTable } from "@/components/organisms"
+import { OExcelImportDialog, OClientsTable } from "@/components/organisms"
 import {
   Card,
   CardAction,
@@ -29,13 +29,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useAuth } from "@/context/auth-context"
 import { hasFormErrors, useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import { roleLabel } from "@/lib/roles"
 import { phoneRule, requiredRule, uuidRule } from "@/lib/validation"
 import * as clientService from "@/services/client.service"
-import type { ApiClient, CreateClientPayload } from "@/types/api"
+import * as importService from "@/services/import.service"
+import * as pointOfSaleService from "@/services/point-of-sale.service"
+import type { ApiClient, ApiPointOfSale, CreateClientPayload } from "@/types/api"
 
 // Gestion des clients (module API /clients) : liste paginée et recherchable,
 // création et modification dans une modal, suppression confirmée. Les admins
@@ -70,6 +79,11 @@ export function ClientsPage() {
   const [error, setError] = useState<string | null>(null)
   // Incrémenté pour relancer le chargement (bouton « Réessayer », action réussie).
   const [reloadKey, setReloadKey] = useState(0)
+
+  const [importOpen, setImportOpen] = useState(false)
+  const [importPosId, setImportPosId] = useState("")
+  const [posOptions, setPosOptions] = useState<ApiPointOfSale[]>([])
+  const [posOptionsLoading, setPosOptionsLoading] = useState(false)
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiClient | null>(null)
@@ -146,6 +160,24 @@ export function ClientsPage() {
   const reload = useCallback(() => {
     setReloadKey((key) => key + 1)
   }, [])
+
+  function openImport() {
+    setImportOpen(true)
+    if (!isSuperadmin || posOptions.length > 0) return
+    setPosOptionsLoading(true)
+    pointOfSaleService
+      .listPointOfSaleOptions()
+      .then(({ options }) => setPosOptions(options))
+      .catch((err) => {
+        toast.error("Points de vente indisponibles", {
+          description:
+            err instanceof ApiError
+              ? err.details || err.message
+              : "Erreur inattendue",
+        })
+      })
+      .finally(() => setPosOptionsLoading(false))
+  }
 
   function openCreate() {
     detailRequestRef.current += 1
@@ -412,13 +444,23 @@ export function ClientsPage() {
             modifiez ou supprimez une fiche depuis le tableau.
           </CardDescription>
           <CardAction>
-            <AtomButton
-              iconLeft={PlusIcon}
-              onClick={openCreate}
-              disabled={saving || deleting}
-            >
-              Nouveau client
-            </AtomButton>
+            <div className="flex gap-2">
+              <AtomButton
+                iconLeft={UploadIcon}
+                variant="outline"
+                onClick={openImport}
+                disabled={saving || deleting}
+              >
+                Importer Excel
+              </AtomButton>
+              <AtomButton
+                iconLeft={PlusIcon}
+                onClick={openCreate}
+                disabled={saving || deleting}
+              >
+                Nouveau client
+              </AtomButton>
+            </div>
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -456,6 +498,56 @@ export function ClientsPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Import Excel */}
+      <OExcelImportDialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open)
+          if (!open) setImportPosId("")
+        }}
+        title="Importer des clients (Excel)"
+        description="Fichier .xls/.xlsx, ligne 1 = en-têtes. Colonnes : client_name (requis), client_telephone, client_matricule, client_corps, client_grade."
+        entityLabel="client(s)"
+        onImport={(file) =>
+          importService.importEntity(
+            "clients",
+            file,
+            isSuperadmin ? importPosId : undefined
+          )
+        }
+        onImported={reload}
+        canSubmit={!isSuperadmin || importPosId !== ""}
+        extraFields={
+          isSuperadmin ? (
+            <div className="grid gap-1.5">
+              <label className="text-sm font-medium">Point de vente</label>
+              <Select
+                value={importPosId}
+                onValueChange={setImportPosId}
+                disabled={posOptionsLoading}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={
+                      posOptionsLoading
+                        ? "Chargement…"
+                        : "Sélectionnez un point de vente"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {posOptions.map((pos) => (
+                    <SelectItem key={pos.id} value={pos.id}>
+                      {pos.name} ({pos.point_of_sale_code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null
+        }
+      />
     </div>
   )
 }

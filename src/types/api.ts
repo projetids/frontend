@@ -247,6 +247,35 @@ export type CreateDepotPayload = {
 
 export type UpdateDepotPayload = Partial<CreateDepotPayload>
 
+// ——— Points de vente (module /point-of-sales) ———
+
+/** Point de vente renvoyé par l'API. */
+export type ApiPointOfSale = {
+  id: string
+  point_of_sale_code: string
+  name: string
+  address?: string | null
+  description?: string | null
+  created_at?: string
+}
+
+export type PointOfSalesQuery = {
+  page?: number
+  limit?: number
+  search?: string
+  sort_by?: "point_of_sale_code" | "name" | "address" | "created_at"
+  sort_order?: "ASC" | "DESC"
+}
+
+export type CreatePointOfSalePayload = {
+  point_of_sale_name: string
+  point_of_sale_code?: string
+  address?: string | null
+  description?: string | null
+}
+
+export type UpdatePointOfSalePayload = Partial<CreatePointOfSalePayload>
+
 // ——— Clients (module /clients) ———
 
 /** Client rattaché à un point de vente (scopé pour les admins). */
@@ -299,7 +328,7 @@ export type UpdateClientPayload = Partial<CreateClientPayload>
 // ——— Articles (module /articles) ———
 
 /** Unité de vente d'un article (enum `article_unit_enum` côté API). */
-export type ApiArticleUnit = "pièce" | "bouteille" | "bac" | "bocal" | "boîte" | "botte" | "bouteille" | "carafe" | "course" | "fft" | "grs" | "kg" | "litre" | "mètre cube" | "paquet" | "pièce" | "portion" | "pot" | "sac" | "sachet" | "seau"
+export type ApiArticleUnit = "piece" | "bouteille"
 
 /**
  * Article du catalogue, rattaché à un point de vente. Les montants et les
@@ -381,6 +410,12 @@ export type CreateArticlePayload = {
 }
 
 export type UpdateArticlePayload = Partial<CreateArticlePayload>
+
+/** Résultat de `POST /articles/import`. */
+export type ImportArticlesResult = {
+  imported: number
+  errors: { row: number; field: string; message: string }[]
+}
 
 // ——— Stock (module /stock) ———
 

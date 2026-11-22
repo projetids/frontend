@@ -4,6 +4,7 @@ import type {
   ApiArticleOption,
   ArticlesQuery,
   CreateArticlePayload,
+  ImportArticlesResult,
   UpdateArticlePayload,
 } from "@/types/api"
 
@@ -70,4 +71,23 @@ export async function deleteArticle(article_id: string) {
     { method: "DELETE" }
   )
   return { envelope, article_id: envelope.data.article_id }
+}
+
+/** POST /articles/import — importe des articles depuis un fichier Excel. */
+export async function importArticles(
+  file: File,
+  point_of_sale_id?: string
+) {
+  const formData = new FormData()
+  formData.append("file", file)
+  if (point_of_sale_id) formData.append("point_of_sale_id", point_of_sale_id)
+  const envelope = await apiRequest<ImportArticlesResult>("/articles/import", {
+    method: "POST",
+    body: formData,
+  })
+  return {
+    envelope,
+    imported: envelope.data.imported,
+    errors: envelope.data.errors,
+  }
 }

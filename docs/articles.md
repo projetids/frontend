@@ -50,5 +50,27 @@ Table : `articles` (scopée par point de vente, décision étape 1). Stock norma
 
 - `src/articles/*` (`article.entity.ts`, `dto/articles.dto.ts`, `articles.service.ts`, `articles.controller.ts`, `articles.module.ts`)
 - Migration : `src/database/migrations/1760700000000-CreateArticles.ts`
+
+## Import depuis Excel (`POST /articles/import`)
+
+Rôles : `ADMIN`, `SUPERADMIN`. Auth : Bearer JWT. `Content-Type: multipart/form-data`.
+
+- Corps : champ `file` (fichier `.xls` / `.xlsx`) + champ optionnel `point_of_sale_id` (requis SUPERADMIN ; forcé au PO de l’admin, ignoré sinon).
+- Ligne 1 de la feuille = en-têtes. Colonnes reconnues : `article_name` (requis), `article_unit` (`piece`|`bouteille`, requis), `article_families_id` (requis, int), `article_barcode`, `article_tva_rate`, `article_purchase_price_ht`, `article_purchase_price_ttc`, `article_margin`, `article_sale_price_ht`, `article_sale_price_ttc`, `article_theoretical_stock`, `article_reserved_qty`, `article_available_qty`, `article_location`, `is_publish` (`true`|`1`|`oui`|`yes`|`vrai`).
+- Traitement en **une seule transaction** (`DataSource.transaction`, rollback auto) : chaque ligne valide crée un article (`article_code` généré serveur, famille/PO validés). Les lignes en erreur sont consignées sans bloquer les suivantes.
+- Réponse IDS : `data = { imported: number, errors: [{ row, field, message }] }`. `message` récapitule. L’import se poursuit malgré les erreurs (200 même avec erreurs).
+- Aucun contenu de fichier ni donnée article n’est journalisé/audité (nombre de lignes / erreurs uniquement — RGPD/ISO27001).
+- Scoping : `ADMIN` limité à son `point_of_sale_id` (403 sans PO) ; `SUPERADMIN` doit fournir `point_of_sale_id` (400 sinon). Famille validée dans le POS.
+
+| Statut | Signification |
+|---|---|
+| `200` | Import terminé (`imported` + `errors` ; peut contenir des erreurs ligne par ligne) |
+| `400` | Fichier manquant/illisible, ou colonnes requises absentes, ou `point_of_sale_id` manquant (SUPERADMIN) |
+| `403` | ADMIN sans point de vente |
+
+## Fichiers complets
+
+- `src/articles/*` (`article.entity.ts`, `dto/articles.dto.ts`, `dto/import-articles.dto.ts`, `articles.service.ts`, `articles.controller.ts`, `articles.module.ts`, `articles.service.import.spec.ts`)
+- Dépendance ajoutée : `exceljs` (+ `@types/multer` pour le typage `Express.Multer.File`).
 ## Transaction / atomicité
 - Traitements d’écriture (create/update/delete, et flows multi-étapes DB) exécutés dans une transaction TypeORM (DataSource.transaction/QueryRunner ou manager transactionnel). En cas d’erreur/exception, rollback automatique et aucune écriture partielle n’est persistée. Les effets externes non transactionnels (cache Redis, envoi mail, logs) ne sont pas couverts par la transaction DB.
