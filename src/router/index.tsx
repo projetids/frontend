@@ -4,6 +4,7 @@ import {
   ArticlesPage,
   CaissePage,
   ClientsPage,
+  SplitArticlesPage,
   PointOfSalesPage,
   DepotsPage,
   HomePage,
@@ -100,6 +101,11 @@ export const router = createBrowserRouter([
             path: "/caisse",
             element: <CaissePage />,
             handle: { roles: allRoles },
+          },
+          {
+            path: "/split-articles",
+            element: <SplitArticlesPage />,
+            handle: { roles: managementRoles },
           },
           {
             path: "/ventes",
