@@ -95,6 +95,12 @@ export const appNavigation: TAppSidebarGroup[] = [
         roles: ["superadmin", "admin"],
       },
       {
+        label: "Caisse",
+        icon: ShoppingCartIcon,
+        href: "/caisse",
+        roles: ["superadmin", "admin", "cashier"],
+      },
+      {
         label: "Clients",
         icon: UsersIcon,
         href: "/clients",
@@ -123,12 +129,6 @@ export const appNavigation: TAppSidebarGroup[] = [
     label: "Compte",
     items: [
       { label: "Mon profil", icon: UserRoundIcon, href: "/profile" },
-      {
-        label: "Mes permissions",
-        icon: KeyRoundIcon,
-        href: "/user-permissions",
-        roles: ["cashier"],
-      },
     ],
   },
 ]

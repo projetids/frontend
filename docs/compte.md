@@ -28,8 +28,8 @@ Comptes créés par `npm run seed` (`src/database/seeds/run-seed.ts`), idempoten
 **CAISIER**
 
 ```json
-{ "user_mail": "caissier1@ids.local", "user_password": "ChangerMo123!" }
-{ "user_mail": "caissier2@ids.local", "user_password": "ChangerMo123!" }
+{ "user_mail": "d", "user_password": "ChangerMo123!" }
+{ "user_mail": "cashier2@ids.local", "user_password": "ChangerMo123!" }
 ```
 
 ## Login de test

@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom"
 import {
   ArticleFamiliesPage,
   ArticlesPage,
+  CaissePage,
   ClientsPage,
   PointOfSalesPage,
   DepotsPage,
@@ -96,6 +97,11 @@ export const router = createBrowserRouter([
             handle: { roles: managementRoles },
           },
           {
+            path: "/caisse",
+            element: <CaissePage />,
+            handle: { roles: allRoles },
+          },
+          {
             path: "/ventes",
             element: <VentesPage />,
             handle: { roles: managementRoles },
@@ -113,7 +119,7 @@ export const router = createBrowserRouter([
           {
             path: "/user-permissions",
             element: <UserPermissionsPage />,
-            handle: { roles: allRoles },
+            handle: { roles: managementRoles },
           },
         ],
       },
