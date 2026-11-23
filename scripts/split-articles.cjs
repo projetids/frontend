@@ -25,6 +25,7 @@ const familyWs = XLSX.utils.json_to_sheet(familyRows, {
 });
 XLSX.utils.book_append_sheet(familyWb, familyWs, "Familles");
 XLSX.writeFile(familyWb, path.join(outDir, "Familles_Articles.xlsx"));
+XLSX.writeFile(familyWb, path.join(outDir, "Familles_Articles.xls"), { bookType: "xls" });
 
 const articleRows = [];
 let skipped = 0;
@@ -78,6 +79,7 @@ const articleWs = XLSX.utils.json_to_sheet(articleRows, {
 });
 XLSX.utils.book_append_sheet(articleWb, articleWs, "Articles");
 XLSX.writeFile(articleWb, path.join(outDir, "Articles_Ajuste.xlsx"));
+XLSX.writeFile(articleWb, path.join(outDir, "Articles_Ajuste.xls"), { bookType: "xls" });
 
 console.log("Familles:", familyRows.length);
 console.log("Articles exportes:", articleRows.length);

@@ -41,7 +41,6 @@ import { ApiError } from "@/lib/api-client"
 import { roleLabel } from "@/lib/roles"
 import { requiredRule } from "@/lib/validation"
 import * as articleFamilyService from "@/services/article-family.service"
-import * as importService from "@/services/import.service"
 import type { ApiArticleFamily } from "@/types/api"
 
 // Gestion des familles d'articles (module API /article-families) : liste
@@ -473,9 +472,7 @@ export function ArticleFamiliesPage() {
         title="Importer des familles d'articles (Excel)"
         description="Fichier .xls/.xlsx, ligne 1 = en-têtes. Colonne : article_families_name (requis)."
         entityLabel="famille(s)"
-        onImport={(file) =>
-          importService.importEntity("article-families", file)
-        }
+        onImport={(file) => articleFamilyService.importArticleFamilies(file)}
         onImported={reload}
       />
     </div>

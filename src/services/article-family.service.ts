@@ -83,6 +83,21 @@ export async function updateArticleFamily(
   return { envelope, family: normalizeFamily(envelope.data) }
 }
 
+/** POST /article-families/import — importe des familles depuis un fichier Excel. */
+export async function importArticleFamilies(file: File) {
+  const formData = new FormData()
+  formData.append("file", file)
+  const envelope = await apiRequest<{ imported: number; errors: { row: number; field: string; message: string }[] }>(
+    "/article-families/import",
+    { method: "POST", body: formData }
+  )
+  return {
+    envelope,
+    imported: envelope.data.imported,
+    errors: envelope.data.errors,
+  }
+}
+
 /** DELETE /article-families/:id — supprime définitivement une famille. */
 export async function deleteArticleFamily(id: number) {
   const envelope = await apiRequest<{
