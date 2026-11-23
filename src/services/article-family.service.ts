@@ -87,14 +87,16 @@ export async function updateArticleFamily(
 export async function importArticleFamilies(file: File) {
   const formData = new FormData()
   formData.append("file", file)
-  const envelope = await apiRequest<{ imported: number; errors: { row: number; field: string; message: string }[] }>(
-    "/article-families/import",
-    { method: "POST", body: formData }
-  )
+  const envelope = await apiRequest<{
+    imported: number
+    skipped: number
+    errors: { row: number; message: string }[]
+    entity: string
+  }>("/article-families/import", { method: "POST", body: formData })
   return {
     envelope,
     imported: envelope.data.imported,
-    errors: envelope.data.errors,
+    errors: envelope.data.errors.map((e) => ({ row: e.row, field: "", message: e.message })),
   }
 }
 

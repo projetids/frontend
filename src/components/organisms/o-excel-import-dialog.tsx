@@ -17,7 +17,7 @@ import { ApiError } from "@/lib/api-client"
 // validation de l'extension côté client, appel de `onImport` puis affichage du
 // récapitulatif (`imported` + erreurs ligne par ligne renvoyées par l'API).
 
-export type ExcelImportError = { row: number; field: string; message: string }
+export type ExcelImportError = { row: number; field?: string; message: string }
 
 export type ExcelImportResponse = {
   envelope: { message: string }
@@ -247,7 +247,7 @@ export function OExcelImportDialog({
                       {result.errors.map((e, i) => (
                         <tr key={i} className="border-b">
                           <td className="px-2 py-1">{e.row}</td>
-                          <td className="px-2 py-1">{e.field}</td>
+                          <td className="px-2 py-1">{e.field || "—"}</td>
                           <td className="px-2 py-1">{e.message}</td>
                         </tr>
                       ))}
