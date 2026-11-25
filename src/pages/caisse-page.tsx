@@ -248,7 +248,7 @@ export function CaissePage() {
 
   if (!registerOpen) {
     return (
-      <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-6 py-16">
+      <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-6 py-16">
         <Card className="w-full">
           <CardHeader>
             <CardTitle>Ouverture de caisse</CardTitle>
@@ -282,7 +282,7 @@ export function CaissePage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Caisse</h1>

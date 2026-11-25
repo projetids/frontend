@@ -45,7 +45,7 @@ export const router = createBrowserRouter([
           {
             path: "/dashboard",
             element: <HomePage />,
-            handle: { roles: allRoles },
+            handle: { roles: managementRoles },
           },
           {
             path: "/profile",

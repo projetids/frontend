@@ -42,7 +42,7 @@ export function ProtectedRoute() {
   }, undefined)
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/profile" replace />
   }
 
   return <Outlet />

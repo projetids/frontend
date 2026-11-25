@@ -1460,7 +1460,7 @@ export default function VentesPage() {
   // ============================================================================
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       {/* Création d'une commande */}
       <Dialog
         open={createCommandeOpen}

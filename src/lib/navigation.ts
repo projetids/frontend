@@ -29,6 +29,7 @@ export const appNavigation: TAppSidebarGroup[] = [
         label: "Tableau de bord",
         icon: ChartNoAxesCombinedIcon,
         href: "/dashboard",
+        roles: ["superadmin", "admin"],
       },
     ],
   },

@@ -50,9 +50,10 @@ const features = [
 export function HomePage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const isCashier = user?.role === "cashier"
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-10">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-10">
       <section className="flex max-w-2xl flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <AtomBadge variant="outline">Gestion de Supermarché</AtomBadge>
@@ -71,9 +72,15 @@ export function HomePage() {
           dans une interface simple et sécurisée.
         </p>
         <div>
-          <AtomButton onClick={() => navigate("/dashboard")}>
-            Ouvrir le tableau de bord
-          </AtomButton>
+          {isCashier ? (
+            <AtomButton onClick={() => navigate("/profile")}>
+              Mon profil
+            </AtomButton>
+          ) : (
+            <AtomButton onClick={() => navigate("/dashboard")}>
+              Ouvrir le tableau de bord
+            </AtomButton>
+          )}
         </div>
       </section>
 

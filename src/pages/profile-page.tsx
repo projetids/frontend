@@ -39,6 +39,7 @@ function initials(name: string): string {
 
 export function ProfilePage() {
   const { user, updateUser } = useAuth()
+  const isCashier = user?.role === "cashier"
 
   useEffect(() => {
     let cancelled = false
@@ -166,7 +167,7 @@ export function ProfilePage() {
   const displayName = user?.user_name ?? "Mon profil"
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <MConfirmDialog
         open={confirmPassword}
         onOpenChange={setConfirmPassword}
@@ -210,7 +211,9 @@ export function ProfilePage() {
             <CardHeader>
               <CardTitle>Informations personnelles</CardTitle>
               <CardDescription>
-                Votre nom, votre adresse e-mail et votre numéro de téléphone.
+                {isCashier
+                  ? "Vos informations personnelles (lecture seule). Seul le mot de passe peut être modifié."
+                  : "Votre nom, votre adresse e-mail et votre numéro de téléphone."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -223,7 +226,7 @@ export function ProfilePage() {
                     error={profileForm.errors.name}
                     onChange={profileForm.handleChange("name")}
                     autoComplete="name"
-                    disabled={savingProfile}
+                    disabled={savingProfile || isCashier}
                     required
                   />
                   <MField
@@ -234,7 +237,7 @@ export function ProfilePage() {
                     error={profileForm.errors.mail}
                     onChange={profileForm.handleChange("mail")}
                     autoComplete="email"
-                    disabled={savingProfile}
+                    disabled={savingProfile || isCashier}
                     required
                   />
                   <MField
@@ -245,17 +248,19 @@ export function ProfilePage() {
                     description="Optionnel — utilisé pour vous contacter."
                     onChange={profileForm.handleChange("phone")}
                     autoComplete="tel"
-                    disabled={savingProfile}
+                    disabled={savingProfile || isCashier}
                   />
                 </div>
 
-                <div>
-                  <AtomButton type="submit" disabled={savingProfile}>
-                    {savingProfile
-                      ? "Enregistrement…"
-                      : "Enregistrer les modifications"}
-                  </AtomButton>
-                </div>
+                {!isCashier ? (
+                  <div>
+                    <AtomButton type="submit" disabled={savingProfile}>
+                      {savingProfile
+                        ? "Enregistrement…"
+                        : "Enregistrer les modifications"}
+                    </AtomButton>
+                  </div>
+                ) : null}
               </form>
             </CardContent>
           </Card>

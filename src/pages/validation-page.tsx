@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { cn } from "cn"
 import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
 import { MConfirmDialog, MField } from "@/components/molecules"
@@ -51,6 +52,18 @@ const EMPTY_ADMIN_FORM: CreateAdminFormValues = {
   phone: "",
   password: "",
   pointOfSale: "",
+}
+
+type CreateCaisierFormValues = {
+  name: string
+  mail: string
+  phone: string
+}
+
+const EMPTY_CAISIER_FORM: CreateCaisierFormValues = {
+  name: "",
+  mail: "",
+  phone: "",
 }
 
 function formatDate(value?: string): string {
@@ -135,8 +148,19 @@ export function ValidationPage() {
     },
   })
   const [creating, setCreating] = useState(false)
+  const caissierForm = useFormValidation<CreateCaisierFormValues>({
+    initialValues: EMPTY_CAISIER_FORM,
+    rules: {
+      name: requiredRule("Le nom est requis."),
+      mail: [requiredRule("L'adresse e-mail est requise."), emailRule()],
+      phone: phoneRule(),
+    },
+  })
+  const [creatingCaisier, setCreatingCaisier] = useState(false)
   // Incrémenté pour relancer le chargement (bouton « Réessayer », action réussie).
   const [reloadKey, setReloadKey] = useState(0)
+  type ValidationTab = "creation" | "validation"
+  const [tab, setTab] = useState<ValidationTab>("creation")
 
   useEffect(() => {
     let cancelled = false
@@ -261,11 +285,61 @@ export function ValidationPage() {
       })
   )
 
+  const handleCreateCaisier = caissierForm.handleSubmit(
+    async (values) => {
+      if (!user?.point_of_sale_id) {
+        toast.error("Point de vente manquant", {
+          description: "Votre compte n'est rattaché à aucun point de vente.",
+        })
+        return
+      }
+      setCreatingCaisier(true)
+      try {
+        const phone = values.phone.trim()
+        const { envelope, temporary_password } = await authService.createCashier({
+          user_name: values.name.trim(),
+          user_mail: values.mail.trim().toLowerCase(),
+          ...(phone ? { user_phone: phone } : {}),
+          point_of_sale_id: user.point_of_sale_id,
+        })
+        toast.success(envelope.message, {
+          description: temporary_password
+            ? `Mot de passe temporaire : ${temporary_password}`
+            : undefined,
+        })
+        caissierForm.reset()
+        reload()
+      } catch (err) {
+        if (err instanceof ApiError && err.code === "CONFLICT") {
+          caissierForm.setErrors({
+            mail: "Un compte utilise déjà ce nom ou cette adresse e-mail.",
+          })
+          toast.error("Création refusée", {
+            description: "Ce nom ou cette adresse e-mail est déjà utilisé.",
+          })
+        } else {
+          toast.error("Création impossible", {
+            description:
+              err instanceof ApiError
+                ? err.details || err.message
+                : "Erreur inattendue",
+          })
+        }
+      } finally {
+        setCreatingCaisier(false)
+      }
+    },
+    () =>
+      toast.error("Formulaire incomplet", {
+        description: "Corrigez les champs signalés en rouge.",
+      })
+  )
+
   const actionLabel = (action: AccountAction): string =>
     action === "validate" ? "Valider" : "Réactiver"
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <MConfirmDialog
         open={confirmation !== null}
         onOpenChange={(open) => {
@@ -303,7 +377,50 @@ export function ValidationPage() {
         </p>
       </header>
 
-      {isSuperadmin ? (
+      <Card>
+        <CardHeader>
+          <CardTitle>Validation des comptes</CardTitle>
+          <CardDescription>
+            Créez des comptes ou validez les demandes en attente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div
+            role="tablist"
+            aria-label="Vues de la validation"
+            className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 p-1"
+          >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "creation"}
+          onClick={() => setTab("creation")}
+          className={cn(
+            "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors",
+            tab === "creation"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Création
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "validation"}
+          onClick={() => setTab("validation")}
+          className={cn(
+            "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors",
+            tab === "validation"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Validation
+        </button>
+      </div>
+
+      {tab === "creation" && isSuperadmin ? (
         <Card>
           <CardHeader>
             <CardTitle>Créer un compte admin</CardTitle>
@@ -381,9 +498,65 @@ export function ValidationPage() {
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Demandes en attente</CardTitle>
+      {tab === "creation" && !isSuperadmin ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Créer un caissier</CardTitle>
+            <CardDescription>
+              Le compte est créé en attente : validez-le ensuite pour
+              l&apos;activer. Le point de vente est celui de votre compte.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreateCaisier} className="grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <MField
+                  label="Nom complet"
+                  id="caissierName"
+                  value={caissierForm.values.name}
+                  error={caissierForm.errors.name}
+                  onChange={caissierForm.handleChange("name")}
+                  autoComplete="off"
+                  disabled={creatingCaisier}
+                  required
+                />
+                <MField
+                  label="Adresse e-mail"
+                  type="email"
+                  id="caissierMail"
+                  value={caissierForm.values.mail}
+                  error={caissierForm.errors.mail}
+                  onChange={caissierForm.handleChange("mail")}
+                  autoComplete="off"
+                  disabled={creatingCaisier}
+                  required
+                />
+                <MField
+                  label="Téléphone"
+                  id="caissierPhone"
+                  value={caissierForm.values.phone}
+                  error={caissierForm.errors.phone}
+                  description="Optionnel — utilisé pour vous contacter."
+                  onChange={caissierForm.handleChange("phone")}
+                  autoComplete="off"
+                  disabled={creatingCaisier}
+                />
+              </div>
+              <div>
+                <AtomButton type="submit" disabled={creatingCaisier}>
+                  {creatingCaisier ? "Création…" : "Créer le caissier"}
+                </AtomButton>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {tab === "validation" ? (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Demandes en attente</CardTitle>
           <CardDescription>
             Validez les comptes {targetPlural} qui demandent l&apos;accès à la
             plateforme.
@@ -451,6 +624,10 @@ export function ValidationPage() {
           </CardContent>
         </Card>
       ) : null}
+        </>
+      ) : null}
+        </CardContent>
+      </Card>
     </div>
   )
 }
