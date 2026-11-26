@@ -7,6 +7,12 @@ import { DECIMAL_REGEX } from "@/lib/validation"
 export const ARTICLE_UNIT_LABELS: Record<ApiArticleUnit, string> = {
   piece: "Pièce",
   bouteille: "Bouteille",
+  gramme: "Gramme",
+  kg: "Kg",
+  boite: "Boîte",
+  sachet: "Sachet",
+  botte: "Botte",
+  bocal: "Bocal",
 }
 
 export const ARTICLE_UNIT_OPTIONS = (

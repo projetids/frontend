@@ -88,6 +88,13 @@ export async function importArticles(
   return {
     envelope,
     imported: envelope.data.imported,
-    errors: envelope.data.errors,
+    skipped: envelope.data.skipped,
+    families_created: envelope.data.families_created,
+    errors: envelope.data.errors.map((e) => ({
+      row: e.row,
+      field: "",
+      message: e.message,
+    })),
+    entity: envelope.data.entity,
   }
 }

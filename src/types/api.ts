@@ -337,7 +337,15 @@ export type UpdateClientPayload = Partial<CreateClientPayload>
 // ——— Articles (module /articles) ———
 
 /** Unité de vente d'un article (enum `article_unit_enum` côté API). */
-export type ApiArticleUnit = "piece" | "bouteille"
+export type ApiArticleUnit =
+  | "piece"
+  | "bouteille"
+  | "gramme"
+  | "kg"
+  | "boite"
+  | "sachet"
+  | "botte"
+  | "bocal"
 
 /**
  * Article du catalogue, rattaché à un point de vente. Les montants et les
@@ -423,7 +431,10 @@ export type UpdateArticlePayload = Partial<CreateArticlePayload>
 /** Résultat de `POST /articles/import`. */
 export type ImportArticlesResult = {
   imported: number
-  errors: { row: number; field: string; message: string }[]
+  skipped: number
+  families_created: { article_families_id: number; article_families_name: string }[]
+  errors: { row: number; message: string }[]
+  entity: string
 }
 
 // ——— Stock (module /stock) ———

@@ -1,217 +1,128 @@
-# Import général — Intégration API (IDS API)
+# Articles — Intégration API
 
-Base URL : `/api/v1` (préfixe global). Réponses enveloppe IDS (`ok/fail`, `signature: "IDS"`). Auth : Bearer JWT (`JwtAuthGuard` + `RolesGuard`). Tag Swagger : `Import général`. Contrôleur : `ImportController`, préfixe `/import`.
+Base URL : `/api/v1` (préfixe global). Réponses enveloppe IDS (`ok/fail/paginated`, `signature: "IDS"`). Auth : Bearer JWT (`JwtAuthGuard` + `RolesGuard`).
 
-## Endpoint
+## Entité
 
-| Méthode | Path | Description | Rôles |
+Table : `articles` (scopée par point de vente, décision étape 1). Stock normalisé IDS : quantités portées en colonnes dénormalisées (`article_theoretical_stock`, `article_reserved_qty`, `article_available_qty`, `article_location`) ; la **source de vérité** sera le moteur `mouvements_stock` (étape 3) qui les alimentera.
+
+| Attribut | Type | Contraintes | Description |
 |---|---|---|---|
-| `POST` | `/import/:entity` | Import de données depuis un fichier Excel (`.xls` / `.xlsx`) | `ADMIN`, `SUPERADMIN` |
+| `article_id` | uuid | PK, auto-généré | Identifiant |
+| `point_of_sale_id` | uuid | NOT NULL, FK `point_of_sales` RESTRICT, indexé | POS (scoping) |
+| `is_publish` | boolean | défaut `true` | Publié ; `false` = mise en veille |
+| `article_code` | varchar | NOT NULL, **généré serveur**, unique par POS (`article_code`,`point_of_sale_id`) | Code auto : 3 premiers caractères de `article_name` (espaces supprimés, trim, majuscules) + suffixe numérique 5 chiffres auto-incrémenté par préfixe/POS. Ex. `article_name="18 PETIT BEURRE"` → `18P00001`, puis `18P00002`. Non modifiable en `PATCH` ; ne pas envoyer à la création. |
+| `article_name` | varchar | NOT NULL | Désignation |
+| `article_unit` | enum `article_unit_enum` | `piece` \| `bouteille` \| `gramme` \| `kg` \| `boite` \| `sachet` \| `botte` \| `bocal` | Unité (migration `1761600000000-ExtendArticleUnitEnum` pour les 6 dernières) |
+| `article_families_id` | int | NOT NULL, FK `article_families(article_families_id)` RESTRICT, indexé | Famille |
+| `article_barcode` | varchar | nullable | Code-barres |
+| `article_tva_rate` | numeric(5,2) | défaut 0 | Taux TVA % |
+| `article_purchase_price_ht` / `article_purchase_price_ttc` | numeric(12,2) | défaut 0 | Prix achat HT/TTC |
+| `article_margin` | numeric(12,2) | défaut 0 | Marge |
+| `article_sale_price_ht` / `article_sale_price_ttc` | numeric(12,2) | défaut 0 | Prix vente HT/TTC |
+| `article_theoretical_stock` | numeric(12,3) | défaut 0 | Stock théorique (dénormalisé) |
+| `article_reserved_qty` | numeric(12,3) | défaut 0 | Qté réservée |
+| `article_available_qty` | numeric(12,3) | défaut 0 | Qté disponible |
+| `article_location` | varchar | nullable | Emplacement |
+| `created_by` | uuid | nullable, FK `users(user_id)` SET NULL | Créateur |
+| `created_at` / `updated_at` | timestamp | auto | Horodatage |
 
-## Path param
+## Scoping & rôles
 
-| Param | Valeurs autorisées | Description |
+- `ADMIN` : limité à son `point_of_sale_id` (forcé à la création ; accès filtré). Sans PO → `403`. `404` hors scope.
+- `SUPERADMIN` : global ; `point_of_sale_id` **requis** à la création, réaffectable en `PATCH`. `created_by` = utilisateur courant.
+
+## Endpoints
+
+| Méthode | Path | Rôles |
 |---|---|---|
-| `entity` | `articles`, `suppliers`, `article-families`, `clients`, `depots` | Type d'entité à importer |
+| `POST` | `/api/v1/articles` | `ADMIN`, `SUPERADMIN` |
+| `GET` | `/api/v1/articles` (paginé, `search` code/nom/barcode/référence, filtres `article_families_id`, `is_publish`) | `ADMIN`, `SUPERADMIN` |
+| `GET` | `/api/v1/articles/select` (publiés : `article_id, article_code, article_name, point_of_sale_id, is_publish, article_unit`) | `ADMIN`, `SUPERADMIN` |
+| `GET/PATCH/DELETE` | `/api/v1/articles/:id` (UUID) | `ADMIN`, `SUPERADMIN` |
+| `POST` | `/api/v1/articles/import` (Excel `.xlsx`, famille par **nom**) | `ADMIN`, `SUPERADMIN` |
 
-## Query param
+## Règles / erreurs
 
-| Param | Type | Requis | Description |
-|---|---|---|---|
-| `point_of_sale_id` | uuid | non | Point de vente (requis pour SUPERADMIN sur `articles`, `suppliers`, `clients`, `depots` ; ignoré pour ADMIN et `article-families`) |
-
-## Corps (multipart/form-data)
-
-| Champ | Type | Description |
-|---|---|---|
-| `file` | file (`.xls` / `.xlsx`) | Fichier Excel à importer (ligne 1 = en-têtes) |
-
-## Scoping point de vente
-
-- **`ADMIN`** : forcé à son propre `point_of_sale_id` (du JWT). Le champ `point_of_sale_id` du fichier/query est ignoré.
-- **`SUPERADMIN`** : doit fournir `point_of_sale_id` (query) pour `articles`, `suppliers`, `clients`, `depots`. Ignoré pour `article-families` (référentiel global).
-
-## Colonnes attendues par entité (norme du canevas)
-
-> **Règle d'en-têtes — attention, elle diffère selon l'entité :**
-> - **`articles`** : en-têtes **tolérants** — alias FR ou EN, insensibles aux accents/espaces/casse (« Nom » = `article_name`, « Unité » = `article_unit`). Colonnes requises absentes → **`400`** dont le message liste les en-têtes trouvés.
-> - **`suppliers`** et **`article-families`** : en-têtes **stricts** — seuls les noms anglais snake_case exacts (minuscules, espaces/underscores significatifs) sont reconnus. « Nom fournisseur » **n'est pas** accepté. Colonne requise absente → **`200`** avec erreur **par ligne** (`Champ requis manquant : <colonne>`), pas de `400`.
->
-> Une colonne absente du canevas équivaut à `null` (optionnel) ou à une erreur ligne (requis).
-
-### `articles`
-
-Délégation vers `POST /articles/import` (même corps, mêmes règles). En-têtes **tolérants FR/EN**.
-
-| Colonne | Requis | Valeur / règle |
-|---|---|---|
-| `article_name` | **oui** | texte — alias FR : `Nom`, `Nom article`, `Désignation`, `Libellé`, `Intitulé`, `Produit` |
-| `article_unit` | **oui** | `piece` \| `bouteille` — alias FR : `Unité`, `Unité de mesure`, `Conditionnement` ; accents/casse tolérés (`Pièce` ✔) |
-| `article_families_id` | **oui** | entier ≥ 1, doit exister dans `article-families` — alias FR : `Famille`, `ID famille`, `Code famille`, `Catégorie` |
-| `article_barcode` | non | texte — alias `Code barres` |
-| `article_tva_rate` | non | décimal (ex. `18.00`) — alias `TVA`, `Taux TVA` |
-| `article_purchase_price_ht` | non | décimal — alias `Prix achat HT` |
-| `article_purchase_price_ttc` | non | décimal — alias `Prix achat TTC` |
-| `article_margin` | non | décimal — alias `Marge` |
-| `article_sale_price_ht` | non | décimal — alias `Prix vente HT` |
-| `article_sale_price_ttc` | non | décimal — alias `Prix vente TTC` |
-| `article_theoretical_stock` | non | décimal — alias `Stock`, `Stock théorique`, `Stock initial` |
-| `article_reserved_qty` | non | décimal — alias `Stock réservé` |
-| `article_available_qty` | non | décimal — alias `Stock disponible` |
-| `article_location` | non | texte — alias `Emplacement`, `Rayon` |
-| `is_publish` | non | `true` \| `1` \| `oui` \| `yes` \| `vrai` (défaut `true`) — alias `Publié`, `Actif` |
-| ~~`article_code`~~ | — | **généré serveur** (préfixe 3 lettres du nom + `00001`… par PO) — **ne pas envoyer** |
-
-Colonne requise absente → `400` avec message : `Colonnes requises manquantes : …. En-têtes trouvés dans le fichier : …`.
-
-### `suppliers`
-
-En-têtes **stricts** (snake_case exact). Chaque ligne est créée dans la transaction globale.
-
-| Colonne | Requis | Valeur / règle |
-|---|---|---|
-| `suppliers_name` | **oui** | texte |
-| `suppliers_civility` | **oui** | **exactement** `Mr` \| `Mme` \| `Mdlle` — **casse sensible** (`MR` ✗ → erreur enum) |
-| `suppliers_contact_name` | non | texte |
-| `suppliers_address` | non | texte |
-| `suppliers_telephone` | non | texte (ex. `+2250700000000`) |
-| `suppliers_email` | non | format e-mail valide |
-| ~~`supplier_number`~~ | — | **généré serveur** (unique) — **ne pas envoyer** |
-
-`point_of_sale_id` : requis en query pour `SUPERADMIN` ; forcé au PO de l'`ADMIN`.
-
-### `article-families`
-
-En-têtes **stricts**. Référentiel **global** : aucun `point_of_sale_id` (ignoré même si fourni).
-
-| Colonne | Requis | Valeur / règle |
-|---|---|---|
-| `article_families_name` | **oui** | texte (ex. `Boissons`) |
-
-### `clients`
-| Colonne | Requis | Description |
-|---|---|---|
-| `client_name` | oui | Nom du client |
-| `client_telephone` | non | Téléphone |
-| `client_matricule` | non | Matricule |
-| `client_corps` | non | Corps |
-| `client_grade` | non | Grade |
-
-### `depots`
-| Colonne | Requis | Description |
-|---|---|---|
-| `depot_name` | oui | Nom du dépôt |
-| `depot_address` | non | Adresse |
-| `depot_description` | non | Description |
-| `is_active` | non | `true`/`false` (défaut `true`) |
-
-## Canevas prêts à l'emploi (ligne 1 = en-têtes)
-
-Copiez la ligne d'en-têtes en **ligne 1** de votre feuille, données à partir de la ligne 2.
-
-### `article-families` — `POST /import/article-families`
-
-```
-article_families_name
-Boissons
-Snacks
-Produits d'entretien
-```
-
-### `suppliers` — `POST /import/suppliers?point_of_sale_id=<uuid>`
-
-```
-suppliers_name	suppliers_civility	suppliers_contact_name	suppliers_address	suppliers_telephone	suppliers_email
-ACME Distribution	Mr	Jean Martin	12 Rue des Fleurs, Abidjan	+2250700000001	contact@acme.example
-SARL Tropico	Mme	Sophie Dubois	Cocody II D 120	+2250700000002	sophie@tropico.example
-Ets Kader	Mdlle	Aminata Kader	Treichville Rue 12	+2250700000003	kader@etskader.example
-```
-
-> `suppliers_civility` est **casse sensible** : exactement `Mr`, `Mme` ou `Mdlle`.
-
-### `articles` — `POST /import/articles` (ou `/POST /import/articles`)
-
-En-têtes **français acceptés** (l'équivalent anglais snake_case fonctionne aussi) :
-
-```
-Nom	Unité	Famille	Code barres	TVA	Prix achat HT	Prix vente HT	Stock	Emplacement
-18 PETIT BEURRE	Pièce	1	1234567890123	18.00	100.00	120.00	50	A1-R2
-EAU MINERALE 1L	Bouteille	2		18.00	500.00	750.00	120	B1-R1
-```
-
-- `Famille` = `article_families_id` (entier, doit exister préalablement).
-- `Unité` = `piece` ou `bouteille` (accents/casse tolérés).
-- `article_code` n'apparaît pas : **généré serveur**.
-
-## Exemples
-
-### Import de fournisseurs (SUPERADMIN)
-
-```bash
-curl -X 'POST' \
-  'http://localhost:5000/api/v1/import/suppliers?point_of_sale_id=<uuid-pos>' \
-  -H 'Authorization: Bearer <access_token>' \
-  -H 'Content-Type: multipart/form-data' \
-  -F 'file=@fournisseurs.xlsx;type=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-```
-
-Fichier `fournisseurs.xlsx` (ligne 1 = en-têtes) :
-
-\| suppliers_name | suppliers_civility | suppliers_contact_name | suppliers_email |
-\|---|---|---|---|
-\| ACME Distribution | Mr | Jean Martin | contact@acme.example |
-\| SARL Tropico | Mme | Sophie Dubois | sophie@tropico.example |
-
-Réponse `200` :
-
-```json
-{
-  "data": { "imported": 2, "errors": [], "entity": "suppliers" },
-  "message": "Import terminé",
-  "status": 200,
-  "error": null,
-  "signature": "IDS"
-}
-```
-
-### Avec erreurs ligne par ligne
-
-```json
-{
-  "data": { "imported": 1, "errors": [ { "row": 3, "field": "suppliers_name", "message": "Champ requis manquant : suppliers_name" } ], "entity": "suppliers" },
-  "message": "Import terminé avec 1 erreur(s)",
-  "status": 200,
-  "error": null,
-  "signature": "IDS"
-}
-```
-
-L'import se poursuit malgré les erreurs : les lignes valides sont créées, les lignes en erreur sont listées.
-
-## Erreurs notables
-
-- `400` : fichier manquant, format non supporté, fichier illisible, colonnes requises manquantes, `point_of_sale_id` requis (SUPERADMIN), entité non supportée.
-- `401` : non authentifié.
-- `403` : rôle requis (`ADMIN` ou `SUPERADMIN`) ou ADMIN sans `point_of_sale_id` associé.
-
-## Transaction / atomicité
-
-- `articles` : délégue à `ArticlesService.importArticles` (une transaction globale, rollback auto en cas d'erreur).
-- Autres entités : chaque ligne est créée dans une transaction globale (`DataSource.transaction`). Si une ligne échoue, elle est consignée en erreur sans bloquer les suivantes. Le commit persiste toutes les lignes validées jusqu'à l'erreur.
-
-## RGPD / confidentialité
-
-Aucun contenu de fichier n'est journalisé ni audité (noms de fichiers, contenus cellulaires exclus des logs).
+- `article_code` **généré serveur** à la création (préfixe 3 caractères du `article_name` sans espaces, MAJ, + suffixe `00001`… auto-incrémenté par préfixe/POS). Ne pas fournir `article_code` (ignoré/immuté en `PATCH`). En cas de collision concurrente très improbable, la création retente (puis `409`).
+- `409` si un code unique ne peut être généré (rare). `404` si famille/POS cible introuvable. Montants en chaînes décimales (`"12.50"`).
 
 ## Fichiers
 
-- `src/import/import.controller.ts` — contrôleur, endpoint `POST /import/:entity`, décorateurs Swagger.
-- `src/import/import.service.ts` — service d'import générique (lecture Excel `.xls`/`.xlsx`, dispatch par entité, scoping POS).
-- `src/import/import.dto.ts` — DTOs de réponse (`ImportResponse`, `ImportError`) et de requête (`ImportEntityDto`).
-- `src/import/import.module.ts` — module, câblé dans `src/app.module.ts`.
+- `src/database/migrations/1761600000000-ExtendArticleUnitEnum.ts` (unités `gramme`, `kg`, `boite`, `sachet`, `botte`, `bocal`)
+- `src/articles/*` (`article.entity.ts`, `dto/articles.dto.ts`, `dto/import-articles.dto.ts`, `articles.service.ts`, `articles.controller.ts`, `articles.module.ts`)
+- Migration : `src/database/migrations/1760700000000-CreateArticles.ts`
+- Exemple d'import : `docs/articles/exemple-import-articles.xlsx`
 
-## Swagger (contrat complet à jour)
+## Import Excel — `POST /api/v1/articles/import`
 
+Rôles `ADMIN`, `SUPERADMIN`. `multipart/form-data` :
+
+| Champ | Requis | Description |
+|---|---|---|
+| `file` | oui | Classeur `.xlsx` (5 Mo max). Seule la **1re feuille** est lue, ligne 1 = en-têtes. |
+| `point_of_sale_id` | SUPERADMIN | UUID du point de vente cible. Ignoré pour `ADMIN` (forcé à son PO ; `403` sans PO). |
+
+**Fichier d'exemple :** [`exemple-import-articles.xlsx`](./exemple-import-articles.xlsx) (feuille `Articles` + feuille `Aide`, ignorée à l'import).
+
+### Colonnes
+
+En-têtes FR (libellés ci-dessous) **ou** snake_case (`article_name`, `article_families_name`…) ; casse, accents et ponctuation indifférents. Colonnes inconnues ignorées.
+
+| En-tête | Champ | Requis | Règle |
+|---|---|---|---|
+| `Nom de l'article` | `article_name` | oui | 255 car. max. Nom déjà présent dans le PO (trim + espaces réduits + minuscules) → ligne ignorée (`skipped`), doublons internes au fichier aussi. |
+| `Nom de famille d'article` | → `article_families_id` | oui | **Nom** de la famille, pas son id. Voir « Résolution de la famille ». Alias acceptés : `Famille`, `article_families_name`. |
+| `Unité` | `article_unit` | non | `piece`\|`bouteille`\|`gramme`\|`kg`\|`boite`\|`sachet`\|`botte`\|`bocal` (accents/casse ignorés : `Pièce`, `Boîte`). Vide → `piece`. |
+| `Code-barres` | `article_barcode` | non | Texte. |
+| `Taux TVA` | `article_tva_rate` | non | Nombre (`20` ou `20,5`), < 1000. Vide → 0. |
+| `Prix achat HT` / `Prix achat TTC` / `Marge` / `Prix vente HT` / `Prix vente TTC` | `article_purchase_price_ht` … `article_sale_price_ttc` | non | Nombre (virgule ou point), arrondi à 2 décimales. Vide → 0. |
+| `Emplacement` | `article_location` | non | Texte. |
+| `Publié` | `is_publish` | non | `oui`/`non` (`true`/`false`, `1`/`0`). Vide → `oui`. |
+
+Non attendus : `article_code` (généré serveur), `article_families_id` (remplacé par le nom ; une colonne `article_families_id` sans colonne nom → `400` explicite), quantités de stock (alimentées par les bons d'entrée / mouvements de stock).
+
+### Résolution de la famille
+
+1. Les familles existantes sont chargées une fois et indexées par nom normalisé (trim + espaces réduits + minuscules, même règle que `POST /article-families/import`).
+2. Pour chaque ligne : nom **trouvé** → son `article_families_id` est utilisé.
+3. Nom **absent** → la famille est **créée** (`article_families_name` = valeur saisie) et son nouvel `article_families_id` est utilisé ; les lignes suivantes portant le même nom réutilisent cet id (pas de doublon).
+4. Les familles créées sont listées dans `families_created`.
+
+### Transaction
+
+Une transaction pour tout le fichier + un `SAVEPOINT` par ligne : une ligne qui échoue à l'insertion est annulée seule (y compris la famille qu'elle aurait créée) et consignée dans `errors` ; les autres lignes sont conservées. Les erreurs de validation (nom vide, unité inconnue, nombre invalide…) sont détectées avant toute écriture.
+
+### Réponse
+
+```json
+{
+  "data": {
+    "imported": 4,
+    "skipped": 1,
+    "families_created": [
+      { "article_families_id": 10, "article_families_name": "EPICERIE" },
+      { "article_families_id": 11, "article_families_name": "HYGIENE" }
+    ],
+    "errors": [{ "row": 6, "message": "Unité inconnue : \"litre\" (attendu : piece, bouteille, ...)" }],
+    "entity": "articles"
+  },
+  "message": "Import des articles terminé avec 1 erreur(s)",
+  "status": 200,
+  "error": null,
+  "signature": "IDS"
+}
 ```
-http://localhost:5000/docs
-```
+
+`row` = numéro de ligne Excel (1 = en-têtes).
+
+### Erreurs globales (`400`)
+
+Fichier absent (champ `file`), extension autre que `.xlsx`, classeur illisible ou vide, colonne `Nom de l'article` ou `Nom de famille d'article` absente (le message liste les en-têtes trouvés). `400 point_of_sale_id requis` / `404` PO introuvable côté SUPERADMIN.
+
+### Sécurité / RGPD
+
+Aucun contenu de fichier journalisé ; l'`AuditInterceptor` trace uniquement méthode/chemin/statut/utilisateur.
+
+## Transaction / atomicité
+- Traitements d’écriture (create/update/delete, et flows multi-étapes DB) exécutés dans une transaction TypeORM (DataSource.transaction/QueryRunner ou manager transactionnel). En cas d’erreur/exception, rollback automatique et aucune écriture partielle n’est persistée. Les effets externes non transactionnels (cache Redis, envoi mail, logs) ne sont pas couverts par la transaction DB.

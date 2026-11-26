@@ -147,6 +147,7 @@ export function ArticlesPage() {
   const [families, setFamilies] = useState<ApiArticleFamily[]>([])
   const [familiesLoading, setFamiliesLoading] = useState(true)
   const [familiesError, setFamiliesError] = useState<string | null>(null)
+  const [familiesReloadKey, setFamiliesReloadKey] = useState(0)
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiArticle | null>(null)
@@ -210,7 +211,7 @@ export function ArticlesPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [familiesReloadKey])
 
   // Recherche différée : évite un appel API à chaque frappe.
   useEffect(() => {
@@ -599,7 +600,7 @@ export function ArticlesPage() {
           if (!open) setImportPosId("")
         }}
         title="Importer des articles (Excel)"
-        description="Fichier .xls/.xlsx, ligne 1 = en-têtes. Colonnes requises : article_name, article_unit, article_families_id."
+        description="Fichier .xlsx, ligne 1 = en-têtes. Colonnes requises : Nom de l'article, Nom de famille d'article. La famille est créée si absente ; les doublons sont ignorés."
         entityLabel="article(s)"
         onImport={(file) =>
           articleService.importArticles(
@@ -607,7 +608,10 @@ export function ArticlesPage() {
             isSuperadmin ? importPosId : undefined
           )
         }
-        onImported={reload}
+        onImported={() => {
+          reload()
+          setFamiliesReloadKey((key) => key + 1)
+        }}
         canSubmit={!isSuperadmin || importPosId !== ""}
         extraFields={
           isSuperadmin ? (

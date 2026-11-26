@@ -22,6 +22,8 @@ export type ExcelImportError = { row: number; field?: string; message: string }
 export type ExcelImportResponse = {
   envelope: { message: string }
   imported: number
+  skipped?: number
+  families_created?: { article_families_id: number; article_families_name: string }[]
   errors: ExcelImportError[]
 }
 
@@ -66,6 +68,8 @@ export function OExcelImportDialog({
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [result, setResult] = useState<{
     imported: number
+    skipped?: number
+    families_created?: { article_families_id: number; article_families_name: string }[]
     errors: ExcelImportError[]
   } | null>(null)
 
@@ -99,10 +103,11 @@ export function OExcelImportDialog({
     }
     setImporting(true)
     try {
-      const { envelope, imported, errors } = await onImport(file)
-      setResult({ imported, errors })
+      const { envelope, imported, skipped, families_created, errors } =
+        await onImport(file)
+      setResult({ imported, skipped, families_created, errors })
       toast.success(envelope.message, {
-        description: `${imported} ${entityLabel} importé(s), ${errors.length} erreur(s).`,
+        description: `${imported} ${entityLabel} importé(s), ${skipped ?? 0} ignoré(s), ${errors.length} erreur(s).`,
       })
       onImported?.()
     } catch (err) {
@@ -230,9 +235,19 @@ export function OExcelImportDialog({
           {result ? (
             <div className="grid gap-2">
               <p className="text-sm font-medium">
-                {result.imported} {entityLabel} importé(s),{" "}
-                {result.errors.length} erreur(s).
+                {result.imported} {entityLabel} importé(s)
+                {result.skipped ? `, ${result.skipped} ignoré(s)` : ""}
+                {`, ${result.errors.length} erreur(s).`}
               </p>
+              {result.families_created && result.families_created.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Familles créées :{" "}
+                  {result.families_created
+                    .map((f) => f.article_families_name)
+                    .join(", ")}
+                  .
+                </p>
+              ) : null}
               {result.errors.length > 0 ? (
                 <div className="max-h-48 overflow-auto rounded-md border">
                   <table className="w-full text-xs">
