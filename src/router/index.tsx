@@ -6,6 +6,7 @@ import {
   ClientsPage,
   SplitArticlesPage,
   PointOfSalesPage,
+  PalettesPage,
   DepotsPage,
   HomePage,
   ProfilePage,
@@ -125,6 +126,11 @@ export const router = createBrowserRouter([
           {
             path: "/user-permissions",
             element: <UserPermissionsPage />,
+            handle: { roles: managementRoles },
+          },
+          {
+            path: "/palettes",
+            element: <PalettesPage />,
             handle: { roles: managementRoles },
           },
         ],

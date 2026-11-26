@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useAuth } from "@/context/auth-context"
+import { usePalette } from "@/components/palette-provider"
 import { useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
 import { roleLabel, statusBadgeVariant, statusLabel } from "@/lib/roles"
@@ -40,6 +41,8 @@ function initials(name: string): string {
 export function ProfilePage() {
   const { user, updateUser } = useAuth()
   const isCashier = user?.role === "cashier"
+  const isAdminOrSuper = user?.role === "admin" || user?.role === "superadmin"
+  const { paletteId, palettes, setPalette } = usePalette()
 
   useEffect(() => {
     let cancelled = false
@@ -314,6 +317,40 @@ export function ProfilePage() {
               </form>
             </CardContent>
           </Card>
+
+          {isAdminOrSuper ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Palette de couleurs</CardTitle>
+                <CardDescription>
+                  Choisissez l'identité visuelle appliquée à votre point de
+                  vente. Les utilisateurs liés en héritent.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                  {palettes.map((palette) => (
+                    <button
+                      key={palette.id}
+                      type="button"
+                      onClick={() => setPalette(palette.id)}
+                      className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-xs transition-colors ${
+                        paletteId === palette.id
+                          ? "border-primary ring-2 ring-primary"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <span
+                        className="size-6 rounded-full border"
+                        style={{ backgroundColor: palette.primaryLight }}
+                      />
+                      <span className="truncate">{palette.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
 
         <Card className="lg:sticky lg:top-6 lg:col-span-2">
