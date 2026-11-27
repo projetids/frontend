@@ -111,11 +111,17 @@ export function ODepotsTable({
                 {showPointOfSale ? (
                   <TableCell>
                     <span
-                      className="block max-w-40 truncate font-mono text-xs text-muted-foreground"
-                      title={depot.point_of_sale_id}
+                      className="block max-w-40 truncate text-sm"
+                      title={`${depot.point_of_sale_name ?? depot.point_of_sale_id} (${depot.point_of_sale_id})`}
                     >
-                      {depot.point_of_sale_id}
+                      {depot.point_of_sale_name?.trim() ||
+                        depot.point_of_sale_id}
                     </span>
+                    {depot.point_of_sale_name?.trim() ? (
+                      <span className="block max-w-40 truncate font-mono text-xs text-muted-foreground">
+                        {depot.point_of_sale_id}
+                      </span>
+                    ) : null}
                   </TableCell>
                 ) : null}
                 <TableCell>

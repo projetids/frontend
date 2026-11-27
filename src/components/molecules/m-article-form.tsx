@@ -1,8 +1,12 @@
 import { useId } from "react"
 import { AtomButton, AtomLabel, AtomTextarea } from "@/components/atoms"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ARTICLE_UNIT_OPTIONS } from "@/lib/articles"
-import type { ApiArticleFamily, ApiArticleUnit } from "@/types/api"
+import { ARTICLE_UNIT_OPTIONS, formatArticlePrice, formatArticleRate } from "@/lib/articles"
+import type {
+  ApiArticleFamily,
+  ApiArticlePrices,
+  ApiArticleUnit,
+} from "@/types/api"
 import { MField } from "./m-field"
 import { MSelectField } from "./m-select-field"
 
@@ -21,6 +25,9 @@ export type MArticleFormValues = {
   article_tva_rate: string
   article_purchase_price_ht: string
   article_purchase_price_ttc: string
+  /** Taux de marge saisi (%) : c'est cette valeur que l'API enregistre. */
+  article_margin_rate: string
+  /** Montant de marge calculé par l'API (lecture seule). */
   article_margin: string
   article_sale_price_ht: string
   article_sale_price_ttc: string
@@ -42,9 +49,10 @@ export const EMPTY_ARTICLE_FORM: MArticleFormValues = {
   article_unit: "piece",
   article_families_id: "",
   article_barcode: "",
-  article_tva_rate: "0",
+  article_tva_rate: "20",
   article_purchase_price_ht: "0",
   article_purchase_price_ttc: "0",
+  article_margin_rate: "30",
   article_margin: "0",
   article_sale_price_ht: "0",
   article_sale_price_ttc: "0",
@@ -77,6 +85,10 @@ export type MArticleFormProps = {
   pointOfSaleRequired?: boolean
   /** Mode modification : le code généré est affiché en lecture seule. */
   editing?: boolean
+  /** Résultat de `POST /articles/pricing/preview` (calcul en direct). */
+  pricingPreview?: ApiArticlePrices | null
+  /** Calcul des prix en cours (appel API en différé). */
+  pricingLoading?: boolean
 }
 
 export function MArticleForm({
@@ -93,7 +105,9 @@ export function MArticleForm({
   formId,
   showActions = true,
   showPointOfSale = false,
-  pointOfSaleRequired = false
+  pointOfSaleRequired = false,
+  pricingPreview = null,
+  pricingLoading = false,
 }: MArticleFormProps) {
   const barcodeId = useId()
   const locationId = useId()
@@ -273,15 +287,16 @@ export function MArticleForm({
             disabled={submitting}
           />
           <MField
-            label="Marge"
-            id="articleMargin"
+            label="Taux de marge (%)"
+            id="articleMarginRate"
             type="text"
             inputMode="decimal"
-            value={values.article_margin}
-            error={errors.article_margin}
-            placeholder="0.00"
+            value={values.article_margin_rate}
+            error={errors.article_margin_rate}
+            placeholder="30.00"
+            description="Le montant de marge est calculé par l'API."
             onChange={(event) =>
-              onChange({ article_margin: event.target.value })
+              onChange({ article_margin_rate: event.target.value })
             }
             autoComplete="off"
             disabled={submitting}
@@ -315,6 +330,44 @@ export function MArticleForm({
             disabled={submitting}
           />
         </div>
+        {(pricingPreview || pricingLoading) ? (
+          <div className="rounded-lg border bg-muted/40 p-3 text-xs">
+            <p className="mb-2 flex items-center gap-2 font-medium">
+              Aperçu du calcul
+              {pricingLoading ? (
+                <span className="text-muted-foreground">(calcul…)</span>
+              ) : null}
+            </p>
+            {pricingPreview ? (
+              <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">PA HT</dt>
+                  <dd className="font-medium">{formatArticlePrice(pricingPreview.article_purchase_price_ht)}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">PA TTC</dt>
+                  <dd className="font-medium">{formatArticlePrice(pricingPreview.article_purchase_price_ttc)}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">PV HT</dt>
+                  <dd className="font-medium">{formatArticlePrice(pricingPreview.article_sale_price_ht)}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">PV TTC</dt>
+                  <dd className="font-medium">{formatArticlePrice(pricingPreview.article_sale_price_ttc)}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Marge</dt>
+                  <dd className="font-medium">{formatArticlePrice(pricingPreview.article_margin)}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">Taux de marge</dt>
+                  <dd className="font-medium">{formatArticleRate(pricingPreview.article_margin_rate)}</dd>
+                </div>
+              </dl>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       <section className="grid gap-4 border-t pt-6">

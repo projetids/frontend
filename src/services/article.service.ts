@@ -2,6 +2,8 @@ import { apiRequest } from "@/lib/api-client"
 import type {
   ApiArticle,
   ApiArticleOption,
+  ApiArticlePricingPreview,
+  ArticlePricingPreviewPayload,
   ArticlesQuery,
   CreateArticlePayload,
   ImportArticlesResult,
@@ -33,6 +35,20 @@ export async function listArticles(query: ArticlesQuery = {}) {
 export async function listArticleOptions() {
   const envelope = await apiRequest<ApiArticleOption[]>("/articles/select")
   return { envelope, options: envelope.data }
+}
+
+/**
+ * POST /articles/pricing/preview — calcule les prix sans écriture pour
+ * pré-remplir le formulaire de création.
+ */
+export async function previewArticlePricing(
+  payload: ArticlePricingPreviewPayload = {}
+) {
+  const envelope = await apiRequest<ApiArticlePricingPreview>(
+    "/articles/pricing/preview",
+    { method: "POST", body: payload }
+  )
+  return { envelope, preview: envelope.data, prices: envelope.data.prices }
 }
 
 /** GET /articles/:id — détail d'un article (404 hors périmètre PO). */

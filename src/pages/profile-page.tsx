@@ -29,7 +29,11 @@ import * as authService from "@/services/auth.service"
 // renvoyées par `GET /auth/profile`. Le rôle n'est pas modifiable ici.
 
 type ProfileFormValues = { name: string; mail: string; phone: string }
-type PasswordFormValues = { password: string; confirm: string }
+type PasswordFormValues = {
+  current: string
+  password: string
+  confirm: string
+}
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -86,8 +90,9 @@ export function ProfilePage() {
     }
   }, [user, profileForm])
   const passwordForm = useFormValidation<PasswordFormValues>({
-    initialValues: { password: "", confirm: "" },
+    initialValues: { current: "", password: "", confirm: "" },
     rules: {
+      current: requiredRule("Le mot de passe actuel est requis."),
       password: passwordRule(),
       confirm: sameAsRule<PasswordFormValues>(
         "password",
@@ -149,10 +154,25 @@ export function ProfilePage() {
   async function handlePasswordConfirm() {
     setSavingPassword(true)
     try {
-      const { user: updated } = await authService.updateProfile({
-        user_password: passwordForm.values.password,
-      })
-      updateUser(updated)
+      await authService.changePassword(
+        passwordForm.values.current,
+        passwordForm.values.password
+      )
+      try {
+        const { user: fresh } = await authService.getProfile()
+        updateUser(fresh)
+      } catch {
+        // Le mot de passe a changé : on lève quand même le blocage local.
+        updateUser(
+          user
+            ? {
+                ...user,
+                must_change_password: false,
+                password_changed_at: new Date().toISOString(),
+              }
+            : null
+        )
+      }
       passwordForm.reset()
       toast.success("Mot de passe mis à jour")
     } catch (err) {
@@ -179,6 +199,16 @@ export function ProfilePage() {
         confirmLabel="Changer le mot de passe"
         onConfirm={() => void handlePasswordConfirm()}
       />
+
+      {user?.must_change_password ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          Votre mot de passe est temporaire. Changez-le ci-dessous avant
+          d&apos;accéder aux autres fonctionnalités.
+        </div>
+      ) : null}
 
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
@@ -279,6 +309,19 @@ export function ProfilePage() {
             <CardContent>
               <form onSubmit={handlePasswordSubmit} className="grid gap-4">
                 <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <MField
+                      label="Mot de passe actuel"
+                      type="password"
+                      id="profileCurrentPassword"
+                      value={passwordForm.values.current}
+                      error={passwordForm.errors.current}
+                      onChange={passwordForm.handleChange("current")}
+                      autoComplete="current-password"
+                      disabled={savingPassword}
+                      required
+                    />
+                  </div>
                   <MField
                     label="Nouveau mot de passe"
                     type="password"

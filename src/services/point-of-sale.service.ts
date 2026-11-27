@@ -3,6 +3,7 @@ import { getAccessToken } from "@/lib/token-store"
 import { API_URL } from "@/lib/env"
 import type {
   ApiPointOfSale,
+  ApiPointOfSaleSettings,
   CreatePointOfSalePayload,
   PointOfSalesQuery,
   UpdatePointOfSalePayload,
@@ -28,6 +29,14 @@ export async function listPointOfSales(query: PointOfSalesQuery = {}) {
 export async function listPointOfSaleOptions() {
   const envelope = await apiRequest<ApiPointOfSale[]>("/point-of-sales/select")
   return { envelope, options: envelope.data }
+}
+
+/** GET /point-of-sales/me/settings — TVA et marge par défaut du PO courant. */
+export async function getMyPointOfSaleSettings() {
+  const envelope = await apiRequest<ApiPointOfSaleSettings>(
+    "/point-of-sales/me/settings"
+  )
+  return { envelope, settings: envelope.data }
 }
 
 /** GET /point-of-sales/:id — détail. */

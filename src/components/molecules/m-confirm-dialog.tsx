@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -25,6 +26,10 @@ export type MConfirmDialogProps = {
   cancelLabel?: string
   /** Met le bouton de confirmation en rouge (action destructive). */
   destructive?: boolean
+  /** Champs supplémentaires affichés entre la description et les actions. */
+  children?: ReactNode
+  /** Désactive la confirmation (ex. montant de fermeture invalide). */
+  confirmDisabled?: boolean
   /** Action à exécuter après la confirmation (ferme la modal automatiquement). */
   onConfirm: () => void
 }
@@ -37,6 +42,8 @@ export function MConfirmDialog({
   confirmLabel = "Confirmer",
   cancelLabel = "Annuler",
   destructive = false,
+  children,
+  confirmDisabled = false,
   onConfirm,
 }: MConfirmDialogProps) {
   return (
@@ -48,12 +55,17 @@ export function MConfirmDialog({
             <AlertDialogDescription>{description}</AlertDialogDescription>
           ) : null}
         </AlertDialogHeader>
+        {children}
         <AlertDialogFooter>
           <AlertDialogCancel asChild>
             <Button variant="outline">{cancelLabel}</Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <Button variant={destructive ? "destructive" : "default"} onClick={onConfirm}>
+            <Button
+              variant={destructive ? "destructive" : "default"}
+              disabled={confirmDisabled}
+              onClick={onConfirm}
+            >
               {confirmLabel}
             </Button>
           </AlertDialogAction>

@@ -65,6 +65,7 @@ import * as pointOfSaleService from "@/services/point-of-sale.service"
 import type {
   ApiArticle,
   ApiArticleFamily,
+  ApiArticlePrices,
   ApiPointOfSale,
   CreateArticlePayload,
 } from "@/types/api"
@@ -82,13 +83,23 @@ const DECIMAL_FIELDS = [
   ["article_tva_rate", "Le taux de TVA"],
   ["article_purchase_price_ht", "Le prix d'achat HT"],
   ["article_purchase_price_ttc", "Le prix d'achat TTC"],
-  ["article_margin", "La marge"],
+  ["article_margin_rate", "Le taux de marge"],
   ["article_sale_price_ht", "Le prix de vente HT"],
   ["article_sale_price_ttc", "Le prix de vente TTC"],
   ["article_theoretical_stock", "Le stock théorique"],
   ["article_reserved_qty", "La quantité réservée"],
   ["article_available_qty", "La quantité disponible"],
 ] as const satisfies ReadonlyArray<readonly [keyof MArticleFormValues, string]>
+
+const PRICING_FIELDS = new Set<keyof MArticleFormValues>([
+  "article_tva_rate",
+  "article_margin_rate",
+  "article_purchase_price_ht",
+  "article_purchase_price_ttc",
+  "article_sale_price_ht",
+  "article_sale_price_ttc",
+  "point_of_sale_id",
+])
 
 const ARTICLE_RULES: FormRules<MArticleFormValues> = {
   article_name: requiredRule("La désignation est requise."),
@@ -116,6 +127,7 @@ function toFormValues(article: ApiArticle): MArticleFormValues {
     article_tva_rate: article.article_tva_rate ?? "0",
     article_purchase_price_ht: article.article_purchase_price_ht ?? "0",
     article_purchase_price_ttc: article.article_purchase_price_ttc ?? "0",
+    article_margin_rate: article.article_margin_rate ?? "30",
     article_margin: article.article_margin ?? "0",
     article_sale_price_ht: article.article_sale_price_ht ?? "0",
     article_sale_price_ttc: article.article_sale_price_ttc ?? "0",
@@ -170,6 +182,16 @@ export function ArticlesPage() {
   const [formLoading, setFormLoading] = useState(false)
   // Identifie la requête de détail en cours : une réponse obsolète est ignorée.
   const detailRequestRef = useRef(0)
+
+  // Calcul des prix en direct (POST /articles/pricing/preview) : les valeurs
+  // renvoyées par l'API pré-remplissent les champs de tarification.
+  const [pricingPreview, setPricingPreview] = useState<ApiArticlePrices | null>(
+    null
+  )
+  const [pricingLoading, setPricingLoading] = useState(false)
+  const pricingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pricingRequestRef = useRef(0)
+  const pricingTouchedRef = useRef(false)
 
   const [viewing, setViewing] = useState<ApiArticle | null>(null)
 
@@ -264,8 +286,102 @@ export function ArticlesPage() {
     setReloadKey((key) => key + 1)
   }, [])
 
+  function resetPricing() {
+    pricingRequestRef.current += 1
+    if (pricingTimerRef.current) clearTimeout(pricingTimerRef.current)
+    pricingTimerRef.current = null
+    setPricingPreview(null)
+    setPricingLoading(false)
+    pricingTouchedRef.current = false
+  }
+
+  /** Appel différé à `POST /articles/pricing/preview` lors de la saisie. */
+  function schedulePricingPreview(values: MArticleFormValues) {
+    if (pricingTimerRef.current) clearTimeout(pricingTimerRef.current)
+    const hasHt = Number(normalizeDecimal(values.article_purchase_price_ht) || 0) > 0
+    const hasTtc = Number(normalizeDecimal(values.article_purchase_price_ttc) || 0) > 0
+    if (!hasHt && !hasTtc) {
+      setPricingPreview(null)
+      setPricingLoading(false)
+      return
+    }
+
+    const requestId = ++pricingRequestRef.current
+    setPricingLoading(true)
+    pricingTimerRef.current = setTimeout(() => {
+      pricingTimerRef.current = null
+      void (async () => {
+        try {
+          const { prices } = await articleService.previewArticlePricing({
+            article_tva_rate: normalizeDecimal(values.article_tva_rate),
+            article_margin_rate: normalizeDecimal(values.article_margin_rate),
+            ...(hasHt
+              ? { article_purchase_price_ht: normalizeDecimal(values.article_purchase_price_ht) }
+              : {}),
+            ...(hasTtc
+              ? { article_purchase_price_ttc: normalizeDecimal(values.article_purchase_price_ttc) }
+              : {}),
+            ...(Number(normalizeDecimal(values.article_sale_price_ht) || 0) > 0
+              ? { article_sale_price_ht: normalizeDecimal(values.article_sale_price_ht) }
+              : {}),
+            ...(Number(normalizeDecimal(values.article_sale_price_ttc) || 0) > 0
+              ? { article_sale_price_ttc: normalizeDecimal(values.article_sale_price_ttc) }
+              : {}),
+            ...(isSuperadmin && values.point_of_sale_id.trim()
+              ? { point_of_sale_id: values.point_of_sale_id.trim() }
+              : {}),
+          })
+          if (requestId !== pricingRequestRef.current) return
+          setPricingPreview(prices)
+          // L'API renvoie toutes les valeurs cohérentes : on pré-remplit la
+          // tarification sans écraser les autres champs du formulaire.
+          form.setValues((previous) => ({
+            ...previous,
+            article_tva_rate: prices.article_tva_rate,
+            article_margin_rate: prices.article_margin_rate,
+            article_purchase_price_ht: prices.article_purchase_price_ht,
+            article_purchase_price_ttc: prices.article_purchase_price_ttc,
+            article_sale_price_ht: prices.article_sale_price_ht,
+            article_sale_price_ttc: prices.article_sale_price_ttc,
+            article_margin: prices.article_margin,
+          }))
+        } catch {
+          if (requestId === pricingRequestRef.current) setPricingPreview(null)
+        } finally {
+          if (requestId === pricingRequestRef.current) setPricingLoading(false)
+        }
+      })()
+    }, 350)
+  }
+
+  /** Transmet les changements au formulaire et déclenche l'aperçu prix. */
+  function handleArticleFormChange(patch: Partial<MArticleFormValues>) {
+    form.setValues(patch)
+    if (Object.keys(patch).some((field) => PRICING_FIELDS.has(field as keyof MArticleFormValues))) {
+      pricingTouchedRef.current = true
+      schedulePricingPreview({ ...form.values, ...patch })
+    }
+  }
+
+  /** Valeurs TVA/marge par défaut du POS courant (GET /me/settings). */
+  async function loadPricingDefaults() {
+    try {
+      const { settings } = await pointOfSaleService.getMyPointOfSaleSettings()
+      if (pricingTouchedRef.current) return
+      form.setValues((previous) => ({
+        ...previous,
+        article_tva_rate: settings.default_tva_rate ?? previous.article_tva_rate,
+        article_margin_rate:
+          settings.default_margin_rate ?? previous.article_margin_rate,
+      }))
+    } catch {
+      // SUPERADMIN sans POS (ou API indisponible) : on garde 20 % / 30 %.
+    }
+  }
+
   function openCreate() {
     detailRequestRef.current += 1
+    resetPricing()
     setFormLoading(false)
     setEditing(null)
     form.reset({
@@ -274,14 +390,18 @@ export function ArticlesPage() {
       point_of_sale_id: user?.point_of_sale_id ?? "",
     })
     setFormOpen(true)
+    void loadPricingDefaults()
   }
 
   // Le tableau ne renvoie qu'un résumé : on recharge la fiche complète via son
   // `article_id` pour préremplir la modal d'édition avec les données à jour.
   async function openEdit(article: ApiArticle) {
     const requestId = ++detailRequestRef.current
+    resetPricing()
     setEditing(article)
-    form.reset(toFormValues(article))
+    const values = toFormValues(article)
+    form.reset(values)
+    schedulePricingPreview(values)
     setFormOpen(true)
     setFormLoading(true)
 
@@ -311,6 +431,7 @@ export function ArticlesPage() {
 
   function closeForm() {
     detailRequestRef.current += 1
+    resetPricing()
     setFormLoading(false)
     setFormOpen(false)
     setEditing(null)
@@ -327,6 +448,17 @@ export function ArticlesPage() {
     }
 
     const values = form.values
+
+    // L'API exige au moins un prix d'achat ; l'autre est calculé.
+    if (
+      Number(normalizeDecimal(values.article_purchase_price_ht) || 0) <= 0 &&
+      Number(normalizeDecimal(values.article_purchase_price_ttc) || 0) <= 0
+    ) {
+      toast.error("Prix d'achat requis", {
+        description: "Renseignez au moins le prix d'achat HT ou TTC.",
+      })
+      return
+    }
 
     // Champs libres vidés → `null` pour effacer la valeur existante.
     // Les montants restent des chaînes décimales ; une valeur vide vaut « 0 ».
@@ -345,7 +477,7 @@ export function ArticlesPage() {
       article_purchase_price_ttc: normalizeDecimal(
         values.article_purchase_price_ttc
       ),
-      article_margin: normalizeDecimal(values.article_margin),
+      article_margin_rate: normalizeDecimal(values.article_margin_rate),
       article_sale_price_ht: normalizeDecimal(values.article_sale_price_ht),
       article_sale_price_ttc: normalizeDecimal(values.article_sale_price_ttc),
       article_theoretical_stock: normalizeDecimal(
@@ -516,7 +648,9 @@ export function ArticlesPage() {
                 showPointOfSale={isSuperadmin}
                 pointOfSaleRequired={isSuperadmin}
                 editing={editing !== null}
-                onChange={form.setValues}
+                pricingPreview={pricingPreview}
+                pricingLoading={pricingLoading}
+                onChange={handleArticleFormChange}
                 onSubmit={() => void handleSubmit()}
                 onCancel={closeForm}
               />
@@ -613,6 +747,7 @@ export function ArticlesPage() {
           setFamiliesReloadKey((key) => key + 1)
         }}
         canSubmit={!isSuperadmin || importPosId !== ""}
+        allowedExtensions={[".xlsx"]}
         extraFields={
           isSuperadmin ? (
             <div className="grid gap-1.5">

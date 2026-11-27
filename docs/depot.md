@@ -32,8 +32,8 @@ Table : `depots`
 | Méthode | Path | Description | Rôles |
 |---|---|---|---|
 | `POST` | `/api/v1/depots` | Créer un dépôt (`depot_code` généré, non fourni) | `ADMIN`, `SUPERADMIN` |
-| `GET` | `/api/v1/depots` | Lister (paginé, recherche, filtre actif, scopé PO) | `ADMIN`, `SUPERADMIN` |
-| `GET` | `/api/v1/depots/select` | Liste légère active `{ depot_id, depot_name, depot_code, point_of_sale_id, is_active }` (tri nom) | `ADMIN`, `SUPERADMIN` |
+| `GET` | `/api/v1/depots` | Lister (paginé, recherche, filtre actif, scopé PO), avec `point_of_sale_name` dans chaque dépôt | `ADMIN`, `SUPERADMIN` |
+| `GET` | `/api/v1/depots/select` | Liste légère active `{ depot_id, depot_name, depot_code, point_of_sale_id, is_active }` (tri nom). Compte non superadmin sans PO → `403`. | `CASHIER` (écran de caisse), `ADMIN`, `SUPERADMIN` |
 | `GET` | `/api/v1/depots/:id` | Détail (`:id` = `depot_id` UUID) | `ADMIN`, `SUPERADMIN` |
 | `PATCH` | `/api/v1/depots/:id` | Mettre à jour | `ADMIN`, `SUPERADMIN` |
 | `DELETE` | `/api/v1/depots/:id` | Supprimer | `ADMIN`, `SUPERADMIN` |
@@ -43,6 +43,7 @@ Table : `depots`
 - `POST` : `{ "depot_name": "Réserve principale", "depot_address"?: "...", "depot_description"?: "...", "is_active"?: true, "point_of_sale_id"?: "<uuid>" }`. `point_of_sale_id` requis si SUPERADMIN, ignoré si ADMIN.
 - `PATCH` : champs partiels ci-dessus ; `point_of_sale_id` modifiable par SUPERADMIN uniquement.
 - `GET /depots` query : `page` (1), `limit` (20, max 100), `search` (ILIKE sur `depot_code`, `depot_name`, `depot_address`), `is_active` (bool), `sort_by` (`depot_code`|`depot_name`|`is_active`|`created_at`, défaut `created_at`), `sort_order` (`ASC`|`DESC`, défaut `DESC`).
+- Chaque élément de `GET /depots` contient `point_of_sale_name`, le nom du POS associé à `point_of_sale_id`.
 
 ## Erreurs notables
 
@@ -63,3 +64,5 @@ Table : `depots`
 - Contrôleur : `src/depots/depots.controller.ts`
 - Module : `src/depots/depots.module.ts` (enregistré `src/app.module.ts`)
 - Migration : `src/database/migrations/1760500000000-CreateDepots.ts`
+## Transaction / atomicité
+- Traitements d’écriture (create/update/delete, et flows multi-étapes DB) exécutés dans une transaction TypeORM (DataSource.transaction/QueryRunner ou manager transactionnel). En cas d’erreur/exception, rollback automatique et aucune écriture partielle n’est persistée. Les effets externes non transactionnels (cache Redis, envoi mail, logs) ne sont pas couverts par la transaction DB.

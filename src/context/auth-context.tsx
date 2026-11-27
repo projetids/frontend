@@ -18,7 +18,12 @@ import {
   setUser,
 } from "@/lib/token-store"
 import { refreshAccessToken } from "@/lib/api-client"
-import type { LoginPayload, RegisterPayload, ApiUser } from "@/types/api"
+import type {
+  ApiOpenCashSession,
+  ApiUser,
+  LoginPayload,
+  RegisterPayload,
+} from "@/types/api"
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated"
 
@@ -27,7 +32,13 @@ type AuthContextValue = {
   status: AuthStatus
   login: (payload: LoginPayload) => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
-  logout: () => Promise<void>
+  /**
+   * Déconnecte l'utilisateur. Le callback reçoit la caisse encore ouverte
+   * renvoyée par l'API et peut la fermer avant le nettoyage local du token.
+   */
+  logout: (
+    onOpenCashSession?: (session: ApiOpenCashSession) => Promise<void>
+  ) => Promise<void>
   /** Met à jour l'utilisateur courant (après PATCH /auth/profile). */
   updateUser: (next: ApiUser | null) => void
 }
@@ -89,12 +100,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (payload: LoginPayload) => {
-    const { user: loggedUser, session_id, access_token, refresh_token } =
-      await authService.login(payload)
+    const {
+      user: loggedUser,
+      session_id,
+      access_token,
+      refresh_token,
+      must_change_password,
+    } = await authService.login(payload)
+    const connectedUser: ApiUser = {
+      ...loggedUser,
+      must_change_password:
+        must_change_password ?? loggedUser.must_change_password,
+    }
     setAccessToken(access_token)
     setSession({ session_id, refresh_token })
-    setUser(loggedUser)
-    setThisUser(loggedUser)
+    setUser(connectedUser)
+    setThisUser(connectedUser)
     setStatus("authenticated")
   }, [])
 
@@ -105,16 +126,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authService.register(payload)
   }, [])
 
-  const logout = useCallback(async () => {
-    const session = getSession()
-    try {
-      if (session) await authService.logout(session.session_id)
-    } finally {
-      clearSession()
-      setThisUser(null)
-      setStatus("unauthenticated")
-    }
-  }, [])
+  const logout = useCallback(
+    async (
+      onOpenCashSession?: (session: ApiOpenCashSession) => Promise<void>
+    ) => {
+      const session = getSession()
+      try {
+        if (session) {
+          const { open_cash_session } = await authService.logout(
+            session.session_id
+          )
+          if (open_cash_session && onOpenCashSession) {
+            await onOpenCashSession(open_cash_session)
+          }
+        }
+      } finally {
+        clearSession()
+        setThisUser(null)
+        setStatus("unauthenticated")
+      }
+    },
+    []
+  )
 
   const updateUser = useCallback((next: ApiUser | null) => {
     setThisUser(next)

@@ -102,7 +102,7 @@ export function PaletteProvider({ children }: { children: React.ReactNode }) {
     if (!user) return
     const key = getKey(user.user_id, user.point_of_sale_id)
     const stored = localStorage.getItem(key) || "default"
-    setPaletteId(stored)
+    queueMicrotask(() => setPaletteId(stored))
   }, [user])
 
   // Synchronise la palette entre onglets partageant le meme POS

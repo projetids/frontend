@@ -71,3 +71,4 @@ export {
   type ExcelImportResponse,
   type OExcelImportDialogProps,
 } from "./o-excel-import-dialog"
+export { OCaisseAdminPanel } from "./o-caisse-admin-panel"

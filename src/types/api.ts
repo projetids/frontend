@@ -92,6 +92,19 @@ export type LoginResponse = {
   session_id: string
   access_token: string
   refresh_token: string
+  must_change_password?: boolean
+}
+
+/** Caisse encore ouverte renvoyée par `/auth/logout` (caissier). */
+export type ApiOpenCashSession = {
+  session_id: string
+  session_code: string
+  business_date: string
+  opened_at: string
+}
+
+export type LogoutResponse = {
+  open_cash_session: ApiOpenCashSession | null
 }
 
 export type RefreshResponse = {
@@ -217,6 +230,8 @@ export type ApiDepot = {
   depot_description?: string | null
   is_active: boolean
   point_of_sale_id: string
+  /** Nom du POS associé, renvoyé par `GET /depots` (2026-11-27). */
+  point_of_sale_name?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -363,6 +378,9 @@ export type ApiArticle = {
   article_tva_rate: string
   article_purchase_price_ht: string
   article_purchase_price_ttc: string
+  /** Taux de marge (%) utilisé pour calculer le prix de vente. */
+  article_margin_rate: string
+  /** Montant de marge calculé (PV HT − PA HT), non saisissable. */
   article_margin: string
   article_sale_price_ht: string
   article_sale_price_ttc: string
@@ -375,7 +393,7 @@ export type ApiArticle = {
   updated_at?: string
 }
 
-/** Réponse légère de `GET /articles/select` (articles publiés). */
+/** Réponse légère de `GET /articles/select` (articles publiés, écran de caisse). */
 export type ApiArticleOption = {
   article_id: string
   article_code: string
@@ -383,6 +401,12 @@ export type ApiArticleOption = {
   point_of_sale_id: string
   is_publish: boolean
   article_unit: ApiArticleUnit
+  /** Champs ajoutés au sélecteur pour la vente au comptant. */
+  article_barcode?: string | null
+  article_tva_rate?: string
+  article_sale_price_ht?: string
+  article_sale_price_ttc?: string
+  article_available_qty?: string
 }
 
 export type ArticleSortField = "article_code" | "article_name" | "created_at"
@@ -414,8 +438,10 @@ export type CreateArticlePayload = {
   article_families_id: number
   article_barcode?: string | null
   article_tva_rate?: string
+  article_margin_rate?: string
   article_purchase_price_ht?: string
   article_purchase_price_ttc?: string
+  /** Champ calculé par l'API : la valeur envoyée est ignorée. */
   article_margin?: string
   article_sale_price_ht?: string
   article_sale_price_ttc?: string
@@ -435,6 +461,42 @@ export type ImportArticlesResult = {
   families_created: { article_families_id: number; article_families_name: string }[]
   errors: { row: number; message: string }[]
   entity: string
+}
+
+/** Corps de `POST /articles/pricing/preview` (calcul sans écriture). */
+export type ArticlePricingPreviewPayload = {
+  article_tva_rate?: string | number
+  article_margin_rate?: string | number
+  article_purchase_price_ht?: string | number
+  article_purchase_price_ttc?: string | number
+  article_sale_price_ht?: string | number
+  article_sale_price_ttc?: string | number
+  point_of_sale_id?: string
+}
+
+/** Valeurs calculées par l'API, renvoyées en chaînes décimales. */
+export type ApiArticlePrices = {
+  article_tva_rate: string
+  article_margin_rate: string
+  article_purchase_price_ht: string
+  article_purchase_price_ttc: string
+  article_sale_price_ht: string
+  article_sale_price_ttc: string
+  article_margin: string
+}
+
+export type ApiArticlePricingPreview = {
+  point_of_sale_id: string | null
+  defaults: { default_tva_rate: string; default_margin_rate: string }
+  prices: ApiArticlePrices
+}
+
+/** Paramètres du point de vente courant (`GET /point-of-sales/me/settings`). */
+export type ApiPointOfSaleSettings = {
+  point_of_sale_id?: string | null
+  default_tva_rate: string
+  default_margin_rate: string
+  palette_id?: string | null
 }
 
 // ——— Stock (module /stock) ———
@@ -999,6 +1061,8 @@ export type ApiVenteComptant = {
   client_id?: string | null
   depot_id: string
   point_of_sale_id: string
+  /** Session de caisse du caissier ; `null` pour une vente ADMIN/SUPERADMIN. */
+  caisse_session_id?: string | null
   status: ApiVenteComptantStatus
   mode_paiement: ApiModePaiement
   montant_total_ht: string
@@ -1026,6 +1090,8 @@ export type VentesListQuery = {
   point_of_sale_id?: string
   client_id?: string
   commande_id?: string
+  /** Filtre ajouté par le module Caisses (ventes rattachées à une session). */
+  caisse_session_id?: string
 }
 
 export type CreateCommandeVenteLinePayload = {
@@ -1067,6 +1133,8 @@ export type CreateVenteComptantPayload = {
   client_id?: string
   depot_id: string
   point_of_sale_id?: string
+  /** Requis pour une vente au comptant réalisée par un caissier. */
+  caisse_session_id?: string
   mode_paiement?: ApiModePaiement
   montant_ttc?: number
   montant_encaisse?: number
@@ -1092,4 +1160,160 @@ export type ApiVenteReportRow = {
   article_families_id?: number | string
   total_qty: string | number
   total_ht: string | number
+}
+
+// ——— Stats / tableau de bord (module /stats) ———
+
+/** Filtres partagés par les endpoints `/stats/*`. */
+export type StatsQuery = {
+  date_from?: string
+  date_to?: string
+  point_of_sale_id?: string
+}
+
+export type ApiStatsPeriod = {
+  date_from: string | null
+  date_to: string | null
+}
+
+export type ApiStatsDashboard = {
+  ventes: {
+    total_ht: string | number
+    total_ttc: string | number
+    nb_ventes: number
+  }
+  stock: {
+    nb_articles: number
+    valeur_stock_achat: string | number
+    stock_bas: number
+  }
+  utilisateurs: {
+    total: number
+    par_role: { role: ApiRole; count: number }[]
+  }
+  period: ApiStatsPeriod
+}
+
+export type ApiStatsVentes = {
+  total_ht: string | number
+  total_ttc: string | number
+  nb_ventes: number
+  par_moyen_paiement: {
+    mode_paiement: ApiModePaiement
+    total_ht: string | number
+    count: number
+  }[]
+  ventes_recentes: {
+    vente_id: string
+    vente_code: string
+    montant_ttc: string | number
+    created_at: string
+  }[]
+  period: ApiStatsPeriod
+}
+
+export type ApiStatsStock = {
+  nb_articles: number
+  valeur_stock_achat: string | number
+  valeur_stock_vente: string | number
+  stock_bas: number
+  point_of_sale_id: string | null
+}
+
+export type ApiStatsUtilisateurs = {
+  total: number
+  par_role: { role: ApiRole; count: number }[]
+  point_of_sale_id: string | null
+}
+
+// ——— Caisses (module /caisses) ———
+
+export const CAISSE_SESSION_STATUSES = ["OUVERTE", "FERMEE"] as const
+export type ApiCaisseSessionStatus = (typeof CAISSE_SESSION_STATUSES)[number]
+
+/** Totaux figés à la fermeture, calculés à la volée tant que la caisse est ouverte. */
+export type ApiCaisseModeTotal = {
+  nb_ventes: number
+  total_ttc: string
+  total_encaisse: string
+}
+
+export type ApiCaisseTotauxParMode = Partial<
+  Record<ApiModePaiement, ApiCaisseModeTotal>
+>
+
+export type ApiCaisseSession = {
+  session_id: string
+  session_code: string
+  cashier_id: string
+  point_of_sale_id: string
+  business_date: string
+  status: ApiCaisseSessionStatus
+  opened_at: string
+  fond_ouverture: string
+  notes_ouverture?: string | null
+  closed_at?: string | null
+  closed_by?: string | null
+  montant_compte?: string | null
+  montant_theorique_especes?: string | null
+  ecart?: string | null
+  nb_ventes: number
+  total_ttc: string
+  total_encaisse: string
+  totaux_par_mode: ApiCaisseTotauxParMode
+  notes_fermeture?: string | null
+  /** Vrai si la caisse est restée ouverte depuis un jour précédent. */
+  is_previous_day?: boolean
+}
+
+export type CaisseSessionsQuery = {
+  date?: string
+  status?: ApiCaisseSessionStatus
+  cashier_id?: string
+  point_of_sale_id?: string
+  page?: number
+  limit?: number
+}
+
+export type OpenCaisseSessionPayload = {
+  fond_ouverture: number | string
+  notes?: string
+}
+
+export type CloseCaisseSessionPayload = {
+  /** Montant compté, fond de caisse inclus. */
+  montant_compte: number | string
+  notes?: string
+}
+
+export type ApiCaisseDailyReportSession = {
+  session_id: string
+  session_code: string
+  cashier_id: string
+  cashier_name?: string
+  status: ApiCaisseSessionStatus
+  opened_at: string
+  closed_at?: string | null
+  fond_ouverture: string
+  nb_ventes: number
+  total_ttc: string
+  total_encaisse: string
+  montant_theorique_especes?: string | null
+  montant_compte?: string | null
+  ecart?: string | null
+  totaux_par_mode: ApiCaisseTotauxParMode
+}
+
+export type ApiCaisseDailyReport = {
+  point_of_sale_id: string
+  business_date: string
+  sessions_ouvertes: number
+  totaux: {
+    nb_ventes: number
+    total_ttc: string
+    total_encaisse: string
+    ecart_total: string
+    totaux_par_mode: ApiCaisseTotauxParMode
+  }
+  sessions: ApiCaisseDailyReportSession[]
 }

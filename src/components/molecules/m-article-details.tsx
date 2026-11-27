@@ -174,8 +174,13 @@ export function MArticleDetails({ article, familyName }: MArticleDetailsProps) {
           value={formatArticlePrice(article.article_purchase_price_ttc)}
         />
         <DetailRow
+          icon={Percent}
+          label="Taux de marge"
+          value={formatArticleRate(article.article_margin_rate)}
+        />
+        <DetailRow
           icon={TrendingUp}
-          label="Marge"
+          label="Marge (calculée)"
           value={formatArticlePrice(article.article_margin)}
         />
         <DetailRow

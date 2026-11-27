@@ -41,13 +41,15 @@ export type OExcelImportDialogProps = {
   extraFields?: ReactNode
   /** Conditions supplémentaires pour autoriser l'envoi. */
   canSubmit?: boolean
+  /** Extensions acceptées (l'API n'accepte que `.xlsx` pour les articles). */
+  allowedExtensions?: string[]
 }
 
-const ALLOWED_EXTENSIONS = [".xls", ".xlsx"]
+const DEFAULT_EXTENSIONS = [".xls", ".xlsx"]
 
-function hasAllowedExtension(file: File) {
+function hasAllowedExtension(file: File, extensions: string[]) {
   const name = file.name.toLowerCase()
-  return ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext))
+  return extensions.some((ext) => name.endsWith(ext))
 }
 
 export function OExcelImportDialog({
@@ -60,7 +62,9 @@ export function OExcelImportDialog({
   onImported,
   extraFields,
   canSubmit = true,
+  allowedExtensions = DEFAULT_EXTENSIONS,
 }: OExcelImportDialogProps) {
+  const extensionsLabel = allowedExtensions.join(", ")
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
@@ -87,9 +91,9 @@ export function OExcelImportDialog({
 
   function handleFileChange(selected: File | null) {
     setResult(null)
-    if (selected && !hasAllowedExtension(selected)) {
+    if (selected && !hasAllowedExtension(selected, allowedExtensions)) {
       setFile(null)
-      setFileError("Format non supporté : sélectionnez un fichier .xls ou .xlsx.")
+      setFileError(`Format non supporté : sélectionnez un fichier ${extensionsLabel}.`)
       return
     }
     setFileError(null)
@@ -98,7 +102,7 @@ export function OExcelImportDialog({
 
   async function handleImport() {
     if (!file) {
-      setFileError("Sélectionnez un fichier .xls ou .xlsx.")
+      setFileError(`Sélectionnez un fichier ${extensionsLabel}.`)
       return
     }
     setImporting(true)
@@ -181,7 +185,7 @@ export function OExcelImportDialog({
                 ref={inputRef}
                 id="excelImportFile"
                 type="file"
-                accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                accept={`${allowedExtensions.join(",")},application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`}
                 onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
                 disabled={importing}
                 className="sr-only"
@@ -222,7 +226,7 @@ export function OExcelImportDialog({
                       Glissez-déposez ou cliquez pour sélectionner
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Formats acceptés : .xls, .xlsx
+                      Formats acceptés : {extensionsLabel}
                     </p>
                   </div>
                 </>

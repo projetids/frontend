@@ -14,6 +14,7 @@ import {
   UserPermissionsPage,
   ValidationPage,
   StocksPage,
+  StatsPage,
   AchatsPage,
   TransfertsPage,
   InventairesPage,
@@ -45,7 +46,7 @@ export const router = createBrowserRouter([
           { path: "/", element: <HomePage />, handle: { roles: allRoles } },
           {
             path: "/dashboard",
-            element: <HomePage />,
+            element: <StatsPage />,
             handle: { roles: managementRoles },
           },
           {

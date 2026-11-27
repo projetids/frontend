@@ -168,11 +168,35 @@ Réponse `200` : liste des IDs de sessions actives de l'utilisateur.
 
 ### 4.5 POST `/auth/logout` (auth)
 
-Body : `{ "session_id": "<uuid>" }` → `{ "data": null, "message": "Déconnexion réussie" }`
+Body : `{ "session_id": "<uuid>" }` (session courante, reçue au login) → `{ "data": { "open_cash_session": null }, "message": "Déconnexion réussie" }`. Toujours `200`, même si la session était déjà inactive. Seule une session appartenant à l'utilisateur du token est révoquée (voir 4.6).
 
-### 4.6 POST `/auth/logout-session` (auth)
+**Caisse encore ouverte (caissier, 2026-11-27)** : `data.open_cash_session` = `{ session_id, session_code, business_date, opened_at }` et message « Déconnexion réussie — caisse encore ouverte ». La déconnexion est faite quand même ; le front propose alors de fermer la caisse (`POST /caisses/fermeture`, voir `docs/caisses/integration.md`). ⚠️ Contrat : `data` n'est plus `null`.
 
-Body : `{ "session_id": "<uuid>" }` → `{ "data": { "session_id": "...", "revoked": true } }`
+### 4.6 POST `/auth/logout-session` (auth, tout rôle)
+
+Déconnecte **une session précise** de l'utilisateur connecté, typiquement un autre appareil listé par `GET /auth/session`, sans toucher à la session courante.
+
+Header : `Authorization: Bearer <access_token>`. Body (validé `IsUUID`) :
+
+```json
+{ "session_id": "<uuid>" }
+```
+
+Réponse `200` :
+
+```json
+{ "data": { "session_id": "<uuid>", "revoked": true, "open_cash_session": null }, "message": "Session déconnectée", "status": 200, "error": null, "meta": null, "signature": "IDS" }
+```
+
+`open_cash_session` : caisse encore ouverte du caissier (même forme qu'en 4.5), sinon `null`.
+
+- `revoked: true` → refresh token (`refresh:<session_id>`) et entrée `session:<user_id>:<session_id>` supprimés dans Redis ; `POST /auth/refresh` sur cette session renvoie ensuite `401`.
+- `revoked: false` (message « Session déjà inactive ») → session expirée, déjà révoquée, ou **appartenant à un autre utilisateur** : rien n'est supprimé (contrôle d'appartenance : le refresh token n'est révoqué que si son propriétaire est l'utilisateur du token). La réponse ne distingue pas ces cas, pour ne pas révéler l'existence de sessions d'autres comptes.
+- L'access token déjà émis pour la session révoquée reste valide jusqu'à son expiration (JWT sans état) ; seul le renouvellement est coupé.
+
+Erreurs : `400` (`session_id` absent ou non UUID), `401` (token absent/invalide/expiré).
+
+Implémentation : `AuthController.logoutSession` (`src/auth/auth.controller.ts`) → `AuthService.logoutSession` → `revokeSession` (partagé avec `logout`) (`src/auth/auth.service.ts`).
 
 ### 4.7 POST `/auth/forgot-password` (public)
 
@@ -223,17 +247,50 @@ Réponse `200` (enveloppe avec `meta` rempli) :
 
 Erreurs : `401` (non authentifié), `403` (rôle requis : admin ou superadmin).
 
-### 4.10 GET `/auth/profile` (auth)
+### 4.10 GET `/auth/profile` (auth, tout rôle)
 
-Réponse : utilisateur courant (jamais de `user_password`)
+Header : `Authorization: Bearer <access_token>`. Aucun paramètre : l'utilisateur est **toujours** celui du token (`sub`), impossible de lire le profil d'un autre compte.
+
+Réponse `200` : utilisateur courant (jamais de `user_password`) + 2 champs calculés :
+
+- `must_change_password` : `true` si `password_changed_at` est `null` (mot de passe temporaire jamais changé) — même règle que la réponse de login ; rediriger alors vers `POST /auth/change-password`.
+- `point_of_sale` : résumé du point de vente rattaché `{ id, point_of_sale_code, name }`, ou `null` (superadmin, ou PO introuvable).
 
 ```json
-{ "data": { "user_id": "<uuid>", "user_name": "Jean Dupont", "user_mail": "...", "role": "cashier" }, ... }
+{
+  "data": {
+    "user_id": "<uuid>",
+    "user_name": "Jean Dupont",
+    "user_mail": "jean@example.com",
+    "user_phone": null,
+    "user_is_active": true,
+    "user_status": "active",
+    "role": "cashier",
+    "point_of_sale_id": "<uuid>",
+    "created_by": "<uuid>",
+    "password_changed_at": "2026-01-01T00:00:00.000Z",
+    "must_change_password": false,
+    "point_of_sale": { "id": "<uuid>", "point_of_sale_code": "POS-1A2B3C4D5E6F", "name": "Boutique Centre" },
+    "created_at": "2025-12-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  },
+  "message": "Profil récupéré",
+  "status": 200,
+  "error": null,
+  "meta": null,
+  "signature": "IDS"
+}
 ```
+
+Erreurs : `401` (token absent/invalide/expiré), `404 NOT_FOUND` « Utilisateur introuvable » (compte supprimé alors que le token est encore valide → déconnecter côté front).
+
+Lecture seule, aucune transaction. Implémentation : `AuthController.getProfile` (`src/auth/auth.controller.ts`) → `UsersService.getProfile` (`src/users/users.service.ts`). Permissions POS de l'utilisateur : `GET /auth/profile/permissions` (module user-permissions).
 
 ### 4.11 PATCH `/auth/profile` (auth)
 
 Body : champs optionnels `{ user_name?, user_mail?, user_password?, user_phone? }` → `data` : utilisateur mis à jour.
+
+**Caissier (`role = cashier`, 2026-11-27)** : seul le **mot de passe** est modifiable. Tout autre champ envoyé (`user_name`, `user_mail`, `user_phone`) → `403` « Caissier : seul le mot de passe est modifiable (champ(s) refusé(s) : …) ». Côté front, l'écran « Mon compte » du caissier ne propose que le changement de mot de passe, de préférence via `POST /auth/change-password` (§4.16, vérifie le mot de passe actuel).
 
 ### 4.12 DELETE `/auth/profile` (auth)
 
@@ -354,7 +411,9 @@ Rôles possibles côté API : `superadmin`, `admin`, `cashier`.
 |---|---|
 | `superadmin` | tout, y compris `GET /auth/users`, validation/réactivation admins |
 | `admin` | gestion, `GET /auth/users`, validation/réactivation caissiers (scopé PO) |
-| `cashier` | profil / session uniquement |
+| `cashier` | profil (mot de passe seul modifiable) / session ; caisse (`/caisses` ouverture, fermeture, session courante, ses caisses) ; ventes au comptant (`/ventes/comptant`, permissions `A40`/`A31`) ; listes `select` articles, dépôts, clients, fournisseurs ; `GET /point-of-sales/me/settings` (palette). **Pas** de tableau de bord (`/stats/*` → `403`). |
+
+> **Correctif sécurité 2026-11-27 — `@Roles` au niveau méthode.** Le décorateur `Roles` (`src/auth/roles.decorator.ts`) utilisait `Reflect.metadata`, qui pose la métadonnée sur le prototype pour une méthode, alors que `RolesGuard` la lit sur la fonction du handler (`Reflector`). **Aucun `@Roles(...)` déclaré sur une méthode n'était appliqué** : 83 routes étaient accessibles à tout utilisateur connecté (seuls les `@Roles` de classe, ex. `ventes`, fonctionnaient). Corrigé avec `SetMetadata`. Effet : les rôles documentés sont désormais réellement imposés ; 69 de ces routes renvoient maintenant `403` au caissier (articles hors `select`, familles, PO, dépôts, clients, fournisseurs hors `select`, stock, inventaires, transferts, stats, administration des comptes/permissions), et les routes `SUPERADMIN` seules refusent l'`ADMIN`. Un front qui appelait ces routes avec un rôle non prévu reçoit désormais `403`.
 
 Création de comptes (endpoints protégés sauf register/login) :
 - `POST /auth/register` → crée un `superadmin` actif (bootstrap) OU un `admin` en `pending` (rattaché à un PO via `point_of_sale_code` ou `point_of_sale_name`) ; activation admin par superadmin (`PUT /auth/admins/:id/validate`).

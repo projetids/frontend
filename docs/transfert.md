@@ -2,6 +2,8 @@
 
 Base `/api/v1`, enveloppe IDS. Auth Bearer JWT + `RolesGuard`. Tag Swagger : `Transferts`. Rôles : `ADMIN|SUPERADMIN`.
 
+> **2026-11-27 — Transfert masqué côté front** (demande client) : le menu Transfert n'est plus affiché dans l'application. L'API reste **inchangée et disponible** (choix validé : masquage front uniquement), pour une réactivation sans développement backend.
+
 ## Rôle
 Déplacement d’articles d’un **dépôt source** vers un **dépôt cible**. Génère **2 mouvements atomiques** liés (même `ref_type=TRANSFERT`, même `ref_id`) : `TRANSFERT_SORTIE` (source, qty −, garde stock/verrou) puis `TRANSFERT_ENTREE` (cible, qty +), via le moteur `StockService`.
 

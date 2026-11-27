@@ -1,5 +1,4 @@
 import {
-  ArrowLeftRightIcon,
   BoxesIcon,
   ChartNoAxesCombinedIcon,
   ClipboardCheckIcon,
@@ -71,12 +70,6 @@ export const appNavigation: TAppSidebarGroup[] = [
         label: "Stocks",
         icon: BoxesIcon,
         href: "/stocks",
-        roles: ["superadmin", "admin"],
-      },
-      {
-        label: "Transferts",
-        icon: ArrowLeftRightIcon,
-        href: "/transferts",
         roles: ["superadmin", "admin"],
       },
       {

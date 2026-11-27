@@ -7,10 +7,12 @@ function readJson(response: Response): Promise<unknown> {
 }
 import type {
   ApiEnvelope,
+  ApiOpenCashSession,
   ApiUser,
   CreateAdminPayload,
   LoginPayload,
   LoginResponse,
+  LogoutResponse,
   ProfileUpdatePayload,
   RefreshResponse,
   RegisterPayload,
@@ -76,21 +78,29 @@ export async function getActiveSessions() {
   return { envelope, sessions: envelope.data }
 }
 
-/** POST /auth/logout (auth) → révoque la session courante. */
+/**
+ * POST /auth/logout (auth) → révoque la session courante et renvoie la caisse
+ * encore ouverte du caissier (`open_cash_session`), ou `null`.
+ */
 export async function logout(session_id: string) {
-  const envelope = await apiRequest<null>("/auth/logout", {
+  const envelope = await apiRequest<LogoutResponse>("/auth/logout", {
     method: "POST",
     body: { session_id },
   })
-  return { envelope, message: envelope.message }
+  return {
+    envelope,
+    message: envelope.message,
+    open_cash_session: envelope.data.open_cash_session,
+  }
 }
 
 /** POST /auth/logout-session (auth) → révoque une session précise. */
 export async function logoutSession(session_id: string) {
-  const envelope = await apiRequest<{ session_id: string; revoked: boolean }>(
-    "/auth/logout-session",
-    { method: "POST", body: { session_id } },
-  )
+  const envelope = await apiRequest<{
+    session_id: string
+    revoked: boolean
+    open_cash_session: ApiOpenCashSession | null
+  }>("/auth/logout-session", { method: "POST", body: { session_id } })
   return { envelope, ...envelope.data }
 }
 

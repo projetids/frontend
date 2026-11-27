@@ -95,8 +95,11 @@ export function MDepotDetails({ depot }: MDepotDetailsProps) {
         <DetailRow
           icon={Store}
           label="Point de vente"
-          value={depot.point_of_sale_id}
-          mono
+          value={
+            depot.point_of_sale_name?.trim()
+              ? `${depot.point_of_sale_name} (${depot.point_of_sale_id})`
+              : depot.point_of_sale_id
+          }
         />
         <DetailRow
           icon={CalendarDays}

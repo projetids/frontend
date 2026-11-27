@@ -28,10 +28,12 @@ Table : `clients` (scopée par point de vente, décision étape 1).
 |---|---|---|
 | `POST` | `/api/v1/clients` | `ADMIN`, `SUPERADMIN` |
 | `GET` | `/api/v1/clients` (paginé, `search` sur nom/téléphone/matricule/corps/grade) | `ADMIN`, `SUPERADMIN` |
-| `GET` | `/api/v1/clients/select` (`client_id, client_name, client_telephone, point_of_sale_id`) | `ADMIN`, `SUPERADMIN` |
+| `GET` | `/api/v1/clients/select` (`client_id, client_name, client_telephone, point_of_sale_id` ; compte non superadmin sans PO → `403`) | `CASHIER` (écran de caisse), `ADMIN`, `SUPERADMIN` |
 | `GET/PATCH/DELETE` | `/api/v1/clients/:id` (UUID) | `ADMIN`, `SUPERADMIN` |
 
 ## Fichiers
 
 - `src/clients/*` (`client.entity.ts`, `dto/clients.dto.ts`, `clients.service.ts`, `clients.controller.ts`, `clients.module.ts`)
 - Migration : `src/database/migrations/1760600000000-CreateClients.ts`
+## Transaction / atomicité
+- Traitements d’écriture (create/update/delete, et flows multi-étapes DB) exécutés dans une transaction TypeORM (DataSource.transaction/QueryRunner ou manager transactionnel). En cas d’erreur/exception, rollback automatique et aucune écriture partielle n’est persistée. Les effets externes non transactionnels (cache Redis, envoi mail, logs) ne sont pas couverts par la transaction DB.

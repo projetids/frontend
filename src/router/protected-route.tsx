@@ -45,5 +45,11 @@ export function ProtectedRoute() {
     return <Navigate to="/profile" replace />
   }
 
+  // Un compte créé avec un mot de passe temporaire doit le changer avant
+  // d'accéder aux autres écrans (docs/auth.md §4.10).
+  if (user?.must_change_password && location.pathname !== "/profile") {
+    return <Navigate to="/profile" replace />
+  }
+
   return <Outlet />
 }
