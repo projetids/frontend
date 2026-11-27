@@ -1,5 +1,9 @@
 export { MFeatureCard, type MFeatureCardProps } from "./m-feature-card"
 export { MField, type MFieldProps } from "./m-field"
+export {
+  MPasswordField,
+  type MPasswordFieldProps,
+} from "./m-password-field"
 export { MConfirmDialog, type MConfirmDialogProps } from "./m-confirm-dialog"
 export {
   MSelectField,

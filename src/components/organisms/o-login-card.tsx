@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { toast } from "sonner"
 import { AtomButton, AtomInput, AtomLabel } from "@/components/atoms"
+import { MPasswordField } from "@/components/molecules"
 import { Card, CardContent } from "@/components/ui/card"
 import { login } from "@/services/user.service"
 
@@ -52,20 +53,20 @@ export function OLoginCard() {
             />
           </div>
           <div className="grid gap-2">
-            <div className="flex items-center">
-              <AtomLabel htmlFor="password">Password</AtomLabel>
+            <div className="flex justify-end">
               <a
                 href="#"
-                className="ml-auto text-sm underline-offset-2 hover:underline"
+                className="text-sm underline-offset-2 hover:underline"
               >
                 Forgot your password?
               </a>
             </div>
-            <AtomInput
+            <MPasswordField
               id="password"
-              type="password"
+              label="Mot de passe"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               required
             />
           </div>

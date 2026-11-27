@@ -6,7 +6,11 @@ import { useFormValidation } from "@/hooks/use-form-validation"
 import { passwordRule } from "@/lib/validation"
 import AuthBackgroundShape from "@/assets/svg/auth-background-shape"
 import { AtomButton } from "@/components/atoms"
-import { MConfirmDialog, MField, MThemeToggle } from "@/components/molecules"
+import {
+  MConfirmDialog,
+  MPasswordField,
+  MThemeToggle,
+} from "@/components/molecules"
 import {
   Card,
   CardContent,
@@ -91,18 +95,16 @@ export function ResetPasswordPage() {
 
         <CardContent className="px-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <MField
+            <MPasswordField
               label="Nouveau mot de passe"
-              type="password"
               id="newPassword"
               value={form.values.password}
               error={form.errors.password}
               onChange={form.handleChange("password")}
               required
             />
-            <MField
+            <MPasswordField
               label="Confirmer le mot de passe"
-              type="password"
               id="confirmPassword"
               value={form.values.confirm}
               error={form.errors.confirm}

@@ -1102,11 +1102,9 @@ export default function VentesPage() {
   ])
 
   useEffect(() => {
-    async function load() {
-      await loadCommandes()
-    }
-    void load()
-  }, [loadCommandes])
+    if (activeTab !== "commandes") return
+    queueMicrotask(() => void loadCommandes())
+  }, [activeTab, loadCommandes])
 
   // ——— Livraisons ———
   const loadLivraisons = useCallback(async () => {
@@ -1153,11 +1151,9 @@ export default function VentesPage() {
   ])
 
   useEffect(() => {
-    async function load() {
-      await loadLivraisons()
-    }
-    void load()
-  }, [loadLivraisons])
+    if (activeTab !== "livraisons") return
+    queueMicrotask(() => void loadLivraisons())
+  }, [activeTab, loadLivraisons])
 
   // ——— Ventes comptant ———
   const loadVentesComptant = useCallback(async () => {
@@ -1204,11 +1200,9 @@ export default function VentesPage() {
   ])
 
   useEffect(() => {
-    async function load() {
-      await loadVentesComptant()
-    }
-    void load()
-  }, [loadVentesComptant])
+    if (activeTab !== "comptant") return
+    queueMicrotask(() => void loadVentesComptant())
+  }, [activeTab, loadVentesComptant])
 
   // ——— Rapports ———
   const loadReports = useCallback(async () => {
@@ -1260,11 +1254,9 @@ export default function VentesPage() {
   ])
 
   useEffect(() => {
-    async function load() {
-      await loadReports()
-    }
-    void load()
-  }, [loadReports])
+    if (activeTab !== "rapports") return
+    queueMicrotask(() => void loadReports())
+  }, [activeTab, loadReports])
 
   // ——— Nouveaux rapports (découpage temporel + par caissier) ———
   const loadAnalyses = useCallback(async () => {
@@ -1657,6 +1649,14 @@ export default function VentesPage() {
     } finally {
       setVenteComptantSaving(false)
     }
+  }
+
+  function openFactureCreate() {
+    // Les sources de facturation ne sont chargées qu'à l'ouverture du formulaire :
+    // elles ne sont pas nécessaires à l'affichage de l'onglet Factures.
+    if (ventesComptant.length === 0) void loadVentesComptant()
+    if (livraisons.length === 0) void loadLivraisons()
+    setFactureCreateOpen(true)
   }
 
   const handleCreateFacture = async () => {
@@ -2556,7 +2556,7 @@ export default function VentesPage() {
             ) : activeTab === "factures" ? (
               <AtomButton
                 iconLeft={PlusIcon}
-                onClick={() => setFactureCreateOpen(true)}
+                onClick={openFactureCreate}
                 disabled={factureSaving}
               >
                 Nouvelle facture

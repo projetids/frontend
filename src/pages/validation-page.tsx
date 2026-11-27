@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { cn } from "cn"
 import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
-import { MConfirmDialog, MField } from "@/components/molecules"
+import { MConfirmDialog, MField, MPasswordField } from "@/components/molecules"
 import {
   Card,
   CardContent,
@@ -464,9 +464,8 @@ export function ValidationPage() {
                   autoComplete="off"
                   disabled={creating}
                 />
-                <MField
+                <MPasswordField
                   label="Mot de passe"
-                  type="password"
                   id="adminPassword"
                   value={adminForm.values.password}
                   error={adminForm.errors.password}

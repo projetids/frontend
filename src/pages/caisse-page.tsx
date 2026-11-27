@@ -106,8 +106,6 @@ export function CaissePage() {
   const [depots, setDepots] = useState<{ depot_id: string; depot_name: string }[]>([])
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [catalogError, setCatalogError] = useState<string | null>(null)
-  /** Incrémenté après une vente pour rafraîchir les stocks du catalogue. */
-  const [catalogReloadKey, setCatalogReloadKey] = useState(0)
 
   // Paramètres envoyés à GET /articles. Publiés par défaut (comportement de
   // l'ancien /articles/select), tri par nom pour retrouver un article vite.
@@ -267,7 +265,7 @@ export function CaissePage() {
     return () => {
       cancelled = true
     }
-  }, [articleQuery, canSell, catalogReloadKey, sessionLoading])
+  }, [articleQuery, canSell, sessionLoading])
 
   useEffect(
     () => () => {
@@ -497,7 +495,9 @@ export function CaissePage() {
       setCart([])
       setMontantEncaisse("")
       // La vente a décrémenté le stock : recharge la page courante du catalogue.
-      setCatalogReloadKey((key) => key + 1)
+      // On renouvelle l'objet de requête (mêmes filtres) plutôt que d'ajouter
+      // une dépendance à l'effet, ce qui garde la liste de dépendances stable.
+      setArticleQuery((previous) => ({ ...previous }))
       if (isCashier) await reloadSession()
     } catch (err) {
       toast.error("Vente impossible", {

@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { AtomBadge, AtomButton } from "@/components/atoms"
-import { MConfirmDialog, MField, MProfileDetails } from "@/components/molecules"
+import {
+  MConfirmDialog,
+  MField,
+  MPasswordField,
+  MProfileDetails,
+} from "@/components/molecules"
 import {
   Card,
   CardContent,
@@ -78,17 +83,18 @@ export function ProfilePage() {
       phone: phoneRule(),
     },
   })
+  const resetProfileForm = profileForm.reset
   const [savingProfile, setSavingProfile] = useState(false)
 
   useEffect(() => {
     if (user) {
-      profileForm.reset({
+      resetProfileForm({
         name: user.user_name,
         mail: user.user_mail,
         phone: user.user_phone ?? "",
       })
     }
-  }, [user, profileForm])
+  }, [user, resetProfileForm])
   const passwordForm = useFormValidation<PasswordFormValues>({
     initialValues: { current: "", password: "", confirm: "" },
     rules: {
@@ -310,9 +316,8 @@ export function ProfilePage() {
               <form onSubmit={handlePasswordSubmit} className="grid gap-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <MField
+                    <MPasswordField
                       label="Mot de passe actuel"
-                      type="password"
                       id="profileCurrentPassword"
                       value={passwordForm.values.current}
                       error={passwordForm.errors.current}
@@ -322,9 +327,8 @@ export function ProfilePage() {
                       required
                     />
                   </div>
-                  <MField
+                  <MPasswordField
                     label="Nouveau mot de passe"
-                    type="password"
                     id="profilePassword"
                     value={passwordForm.values.password}
                     error={passwordForm.errors.password}
@@ -333,9 +337,8 @@ export function ProfilePage() {
                     disabled={savingPassword}
                     required
                   />
-                  <MField
+                  <MPasswordField
                     label="Confirmer le mot de passe"
-                    type="password"
                     id="profilePasswordConfirm"
                     value={passwordForm.values.confirm}
                     error={passwordForm.errors.confirm}

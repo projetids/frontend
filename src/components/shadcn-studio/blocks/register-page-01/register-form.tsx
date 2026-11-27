@@ -36,6 +36,7 @@ const RegisterForm = () => {
   const navigate = useNavigate()
   const { register } = useAuth()
   const [isVisible, setIsVisible] = useState(false)
+  const [isConfirmVisible, setIsConfirmVisible] = useState(false)
   const [loading, setLoading] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   // DTO API : user_name, user_mail, user_password, user_phone
@@ -192,15 +193,36 @@ const RegisterForm = () => {
           <FieldLabel htmlFor="registerConfirm" className="leading-5" required>
             Confirmer le mot de passe
           </FieldLabel>
-          <Input
-            id="registerConfirm"
-            type="password"
-            value={form.values.confirm}
-            onChange={form.handleChange("confirm")}
-            aria-invalid={Boolean(form.errors.confirm)}
-            autoComplete="new-password"
-            required
-          />
+          <InputGroup>
+            <InputGroupInput
+              id="registerConfirm"
+              type={isConfirmVisible ? "text" : "password"}
+              value={form.values.confirm}
+              onChange={form.handleChange("confirm")}
+              aria-invalid={Boolean(form.errors.confirm)}
+              autoComplete="new-password"
+              required
+            />
+            <InputGroupAddon align="inline-end" className="pr-1.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                onClick={() => setIsConfirmVisible((previous) => !previous)}
+                className="rounded-l-none text-muted-foreground hover:bg-transparent"
+                aria-label={
+                  isConfirmVisible
+                    ? "Masquer le mot de passe"
+                    : "Afficher le mot de passe"
+                }
+              >
+                {isConfirmVisible ? <EyeOffIcon /> : <EyeIcon />}
+                <span className="sr-only">
+                  {isConfirmVisible ? "Masquer" : "Afficher"}
+                </span>
+              </Button>
+            </InputGroupAddon>
+          </InputGroup>
         </Field>
         <Field className="gap-2">
           {Object.entries(form.errors).map(([key, message]) =>
