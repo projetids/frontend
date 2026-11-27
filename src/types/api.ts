@@ -963,6 +963,7 @@ export type UpdateUserPermissionsPayload = {
 export const COMMANDE_VENTE_STATUSES = [
   "BROUILLON",
   "VALIDEE",
+  "PARTIELLEMENT_LIVREE",
   "LIVREE",
   "FACTUREE",
   "CLOTUREE",
@@ -1045,13 +1046,19 @@ export type ApiBonLivraison = {
   lignes?: ApiBonLivraisonLigne[]
 }
 
-/** Ligne d'une vente au comptant (VC → SORTIE stock, BL implicite). */
+/** Ligne d'une vente au comptant (VC → SORTIE stock, BL implicite).
+ * Les montants TTC et la TVA sont calculés par l'API (décimales en chaînes). */
 export type ApiVenteComptantLigne = {
   ligne_id: string
   vente_id: string
   article_id: string
   qty: string
   unit_price_ht: string
+  unit_price_ttc: string
+  tva_rate: string
+  montant_ht: string
+  montant_tva: string
+  montant_ttc: string
 }
 
 /** Vente au comptant — encaissement + SORTIE stock à validation. */
@@ -1066,8 +1073,15 @@ export type ApiVenteComptant = {
   status: ApiVenteComptantStatus
   mode_paiement: ApiModePaiement
   montant_total_ht: string
+  montant_tva: string
   montant_ttc: string
   montant_encaisse: string
+  monnaie_rendue: string
+  /** Renseigné dès qu'une facture a été émise depuis cette vente. */
+  facture_id?: string | null
+  annulee_at?: string | null
+  annulee_par?: string | null
+  motif_annulation?: string | null
   notes?: string | null
   created_by?: string | null
   created_at?: string
@@ -1126,20 +1140,167 @@ export type CreateBonLivraisonPayload = {
 export type CreateVenteComptantLinePayload = {
   article_id: string
   qty: number
-  unit_price_ht?: number
+  /** PU TTC saisi ; l'API le déduit du PV TTC de l'article si absent. */
+  unit_price_ttc?: number
 }
 
 export type CreateVenteComptantPayload = {
   client_id?: string
   depot_id: string
   point_of_sale_id?: string
-  /** Requis pour une vente au comptant réalisée par un caissier. */
+  /** Optionnel : le caissier est toujours rattaché à sa caisse ouverte du jour
+   * (409 si la session envoyée n'est pas la sienne). Ignoré pour un admin. */
   caisse_session_id?: string
   mode_paiement?: ApiModePaiement
-  montant_ttc?: number
+  /** Doit être >= TTC calculé par l'API ; défaut = TTC. */
   montant_encaisse?: number
   notes?: string
   lines: CreateVenteComptantLinePayload[]
+}
+
+/** Annulation d'une vente au comptant (admin/superadmin, A40 + A31). */
+export type AnnulerVenteComptantPayload = {
+  /** 3 à 1000 caractères. */
+  motif: string
+}
+
+/** Enum `facture_vente_status_enum` de l'API. */
+export const FACTURE_VENTE_STATUSES = ["VALIDEE", "ANNULEE"] as const
+export type ApiFactureVenteStatus = (typeof FACTURE_VENTE_STATUSES)[number]
+export type ApiFactureVenteSource = "COMPTANT" | "LIVRAISON"
+
+/** Ligne de facture de vente : prix et TVA figés à l'émission. */
+export type ApiFactureVenteLigne = {
+  ligne_id: string
+  facture_id: string
+  article_id: string
+  livraison_id?: string | null
+  article_code: string
+  designation: string
+  qty: string
+  unit_price_ht: string
+  unit_price_ttc: string
+  tva_rate: string
+  montant_ht: string
+  montant_tva: string
+  montant_ttc: string
+}
+
+/** Facture de vente (FAV) — numérotation par POS et par année. */
+export type ApiFactureVente = {
+  facture_id: string
+  facture_code: string
+  facture_year: number
+  facture_number: number
+  point_of_sale_id: string
+  point_of_sale_name?: string | null
+  client_id?: string | null
+  source: ApiFactureVenteSource
+  vente_id?: string | null
+  status: ApiFactureVenteStatus
+  invoice_date: string
+  mode_paiement?: ApiModePaiement | null
+  montant_ht: string
+  montant_tva: string
+  montant_ttc: string
+  notes?: string | null
+  created_by?: string | null
+  created_at?: string
+  /** Présent uniquement sur GET /ventes/factures/:id. */
+  lignes?: ApiFactureVenteLigne[]
+  client?: { client_id: string; client_name: string } | null
+  point_of_sale?: { point_of_sale_id: string; point_of_sale_name: string } | null
+}
+
+export type FacturesVenteListQuery = {
+  page?: number
+  limit?: number
+  client_id?: string
+  source?: ApiFactureVenteSource
+  date_from?: string
+  date_to?: string
+  search?: string
+  point_of_sale_id?: string
+}
+
+/** Exactement un de `vente_id` ou `livraison_ids` doit être fourni. */
+export type CreateFactureVentePayload = {
+  vente_id?: string
+  livraison_ids?: string[]
+  invoice_date?: string
+  notes?: string
+}
+
+export type VenteReportGranularite = "jour" | "semaine" | "mois"
+export type VenteReportSource = "tous" | "comptant" | "livraison"
+
+export type VenteReportPeriodeQuery = {
+  granularite?: VenteReportGranularite
+  date_from?: string
+  date_to?: string
+  source?: VenteReportSource
+  cashier_id?: string
+  article_families_id?: number
+}
+
+export type VenteReportTotaux = {
+  nb_ventes: number
+  total_ht: string
+  total_tva: string
+  total_ttc: string
+  panier_moyen_ttc: string
+}
+
+export type ApiVenteReportPeriode = VenteReportTotaux & {
+  periode: string
+  periode_fin?: string
+  label: string
+  par_mode?: Record<string, { nb_ventes: number; total_ttc: string }>
+}
+
+export type ApiVentesReportPeriodes = {
+  granularite: VenteReportGranularite
+  date_from: string
+  date_to: string
+  source?: VenteReportSource
+  totaux: VenteReportTotaux
+  periodes: ApiVenteReportPeriode[]
+}
+
+export type VenteReportParCaissierQuery = {
+  date_from?: string
+  date_to?: string
+  granularite?: VenteReportGranularite
+  cashier_id?: string
+  point_of_sale_id?: string
+}
+
+export type ApiVenteCaissierReport = {
+  user_id: string
+  user_name: string
+  role: string
+  nb_ventes: number
+  total_ht: string
+  total_tva: string
+  total_ttc: string
+  total_encaisse_net: string
+  panier_moyen_ttc: string
+  par_mode?: Record<string, { nb_ventes: number; total_ttc: string }>
+  annulations?: { nb: number; total_ttc: string }
+  caisses?: {
+    nb_sessions: number
+    sessions_ouvertes: number
+    ecart_total: string
+    manques_total: string
+  }
+  periodes?: { periode: string; nb_ventes: number; total_ttc: string }[]
+}
+
+export type ApiVentesReportParCaissier = {
+  date_from: string
+  date_to: string
+  granularite?: VenteReportGranularite
+  caissiers: ApiVenteCaissierReport[]
 }
 
 /** Filtres des rapports de ventes (CA BL + ventes comptant validées). */

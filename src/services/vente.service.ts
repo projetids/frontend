@@ -1,16 +1,24 @@
-import { apiRequest } from "@/lib/api-client"
+import { apiDownload, apiRequest } from "@/lib/api-client"
 import type {
+  AnnulerVenteComptantPayload,
   ApiBonLivraison,
   ApiBonLivraisonLigne,
   ApiCommandeVente,
   ApiCommandeVenteLigne,
+  ApiFactureVente,
   ApiModePaiement,
   ApiVenteComptant,
   ApiVenteComptantLigne,
   ApiVenteReportRow,
+  ApiVentesReportParCaissier,
+  ApiVentesReportPeriodes,
   CreateBonLivraisonPayload,
   CreateCommandeVentePayload,
+  CreateFactureVentePayload,
   CreateVenteComptantPayload,
+  FacturesVenteListQuery,
+  VenteReportParCaissierQuery,
+  VenteReportPeriodeQuery,
   VentesListQuery,
   VentesReportQuery,
 } from "@/types/api"
@@ -107,6 +115,61 @@ export async function getVenteComptant(vente_id: string) {
   return { envelope, vente: envelope.data }
 }
 
+/** POST /ventes/comptant/:id/annulation — admin/superadmin, A40 + A31. */
+export async function annulerVenteComptant(
+  vente_id: string,
+  payload: AnnulerVenteComptantPayload
+) {
+  const envelope = await apiRequest<ApiVenteComptant>(
+    `/ventes/comptant/${encodeURIComponent(vente_id)}/annulation`,
+    { method: "POST", body: payload }
+  )
+  return { envelope, vente: envelope.data }
+}
+
+// ——— Factures de vente (FAV) ———
+
+/** POST /ventes/factures — exactement un de `vente_id` ou `livraison_ids`. */
+export async function createFactureVente(payload: CreateFactureVentePayload) {
+  const envelope = await apiRequest<ApiFactureVente>("/ventes/factures", {
+    method: "POST",
+    body: payload,
+  })
+  return { envelope, facture: envelope.data }
+}
+
+export async function listFacturesVente(query: FacturesVenteListQuery = {}) {
+  const envelope = await apiRequest<ApiFactureVente[]>("/ventes/factures", {
+    query,
+  })
+  return {
+    envelope,
+    factures: envelope.data,
+    meta: envelope.meta ?? {
+      page: 1,
+      limit: query.limit ?? 20,
+      total: envelope.data.length,
+    },
+  }
+}
+
+export async function getFactureVente(facture_id: string) {
+  const envelope = await apiRequest<ApiFactureVente>(
+    `/ventes/factures/${encodeURIComponent(facture_id)}`
+  )
+  return { envelope, facture: envelope.data }
+}
+
+/** GET /ventes/factures/:id/pdf — télécharge la facture au format PDF. */
+export async function downloadFactureVentePdf(
+  facture: Pick<ApiFactureVente, "facture_id" | "facture_code">
+) {
+  await apiDownload(
+    `/ventes/factures/${encodeURIComponent(facture.facture_id)}/pdf`,
+    `${facture.facture_code ?? "facture"}.pdf`
+  )
+}
+
 // ——— Rapports (CA par article / famille) ———
 
 export async function reportParArticle(query: VentesReportQuery = {}) {
@@ -123,6 +186,24 @@ export async function reportParFamille(query: VentesReportQuery = {}) {
     { query }
   )
   return { envelope, rows: envelope.data }
+}
+
+/** GET /ventes/report/periodes — série temporelle (admin/superadmin, A40). */
+export async function reportPeriodes(query: VenteReportPeriodeQuery = {}) {
+  const envelope = await apiRequest<ApiVentesReportPeriodes>(
+    "/ventes/report/periodes",
+    { query }
+  )
+  return { envelope, report: envelope.data }
+}
+
+/** GET /ventes/report/par-caissier — CA par vendeur (admin/superadmin, A40). */
+export async function reportParCaissier(query: VenteReportParCaissierQuery = {}) {
+  const envelope = await apiRequest<ApiVentesReportParCaissier>(
+    "/ventes/report/par-caissier",
+    { query }
+  )
+  return { envelope, report: envelope.data }
 }
 
 // Ré-exports des types de lignes pour les composants (utiles pour les formes).

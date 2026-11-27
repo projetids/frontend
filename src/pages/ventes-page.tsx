@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react"
 import {
+  BanIcon,
   ChartNoAxesCombinedIcon,
   ClipboardListIcon,
+  FileTextIcon,
   Loader2Icon,
   PlusIcon,
   RefreshCwIcon,
@@ -25,8 +27,11 @@ import {
 } from "@/components/molecules"
 import {
   OCommandesVenteTable,
+  OFacturesVenteTable,
   OLivraisonsVenteTable,
   OVentesComptantTable,
+  OVentesReportCaissiers,
+  OVentesReportPeriodes,
   OVentesReportTable,
 } from "@/components/organisms"
 import {
@@ -53,6 +58,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/context/auth-context"
 import { hasFormErrors, useFormValidation } from "@/hooks/use-form-validation"
 import { ApiError } from "@/lib/api-client"
@@ -64,12 +70,17 @@ import {
   commandeVenteLabel,
   commandeVenteStatusLabel,
   depotVenteLabel,
+  factureVenteSourceLabel,
+  factureVenteStatusLabel,
+  formatVenteDate,
   formatVenteDateTime,
   formatVenteMoney,
   formatVenteQuantity,
   modePaiementLabel,
   venteComptantStatusLabel,
   venteStatusBadgeVariant,
+  VENTE_REPORT_GRANULARITE_LABELS,
+  VENTE_REPORT_SOURCE_LABELS,
 } from "@/lib/ventes"
 import {
   decimalRule,
@@ -90,12 +101,19 @@ import type {
   ApiClientOptionVente,
   ApiCommandeVente,
   ApiDepotOption,
+  ApiFactureVente,
+  ApiFactureVenteSource,
   ApiModePaiement,
   ApiVenteComptant,
   ApiVenteReportRow,
+  ApiVentesReportParCaissier,
+  ApiVentesReportPeriodes,
   CreateBonLivraisonPayload,
   CreateCommandeVentePayload,
+  CreateFactureVentePayload,
   CreateVenteComptantPayload,
+  VenteReportGranularite,
+  VenteReportSource,
 } from "@/types/api"
 
 const PAGE_SIZE = 10
@@ -103,7 +121,12 @@ const COMMANDE_FORM_ID = "vente-commande-form"
 const LIVRAISON_FORM_ID = "vente-livraison-form"
 const COMPTANT_FORM_ID = "vente-comptant-form"
 
-type VentesTab = "commandes" | "livraisons" | "comptant" | "rapports"
+type VentesTab =
+  | "commandes"
+  | "livraisons"
+  | "comptant"
+  | "factures"
+  | "rapports"
 
 /** Valeur sentinelle des selects optionnels (MSelectField n'accepte pas ""). */
 const NONE_OPTION = "__none__"
@@ -553,12 +576,12 @@ type VenteComptantFormValues = {
   depot_id: string
   point_of_sale_id: string
   mode_paiement: ApiModePaiement
-  montant_ttc: string
   montant_encaisse: string
   notes: string
   article_id: string
   qty: string
-  unit_price_ht: string
+  /** PU TTC saisi ; l'API le déduit du PV TTC de l'article si laissé vide. */
+  unit_price_ttc: string
 }
 
 type VenteComptantFormErrors = Partial<
@@ -571,12 +594,11 @@ function createEmptyVenteComptantForm(): VenteComptantFormValues {
     depot_id: "",
     point_of_sale_id: "",
     mode_paiement: "ESPECES",
-    montant_ttc: "",
     montant_encaisse: "",
     notes: "",
     article_id: "",
     qty: "",
-    unit_price_ht: "",
+    unit_price_ttc: "",
   }
 }
 
@@ -646,7 +668,8 @@ function VenteComptantForm({
         <div className="flex flex-col gap-0.5">
           <h4 className="text-sm font-medium">Nouvelle vente au comptant</h4>
           <p className="text-xs text-muted-foreground">
-            Encaissement + sortie stock à validation (BL implicite).
+            Encaissement + sortie stock à validation (BL implicite). Les montants
+            HT/TTC et la TVA sont calculés par l'API depuis le PU TTC.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -721,26 +744,16 @@ function VenteComptantForm({
             required
           />
           <MField
-            label="Prix unitaire HT"
-            value={values.unit_price_ht}
-            error={errors.unit_price_ht}
-            placeholder="0"
+            label="Prix unitaire TTC (Ariary)"
+            value={values.unit_price_ttc}
+            error={errors.unit_price_ttc}
+            placeholder="Laissez vide pour utiliser le PV TTC de l'article"
             inputMode="decimal"
             onChange={(event) =>
-              onChange({ unit_price_ht: event.target.value })
+              onChange({ unit_price_ttc: event.target.value })
             }
             autoComplete="off"
             disabled={disabled}
-          />
-          <MField
-            label="Montant TTC (Ariary)"
-            type="number"
-            value={values.montant_ttc}
-            error={errors.montant_ttc}
-            placeholder="0"
-            onChange={(event) => onChange({ montant_ttc: event.target.value })}
-            disabled={disabled}
-            required
           />
           <MField
             label="Montant encaissé (Ariary)"
@@ -848,6 +861,53 @@ export default function VentesPage() {
   const [reportLoading, setReportLoading] = useState(false)
   const [reportError, setReportError] = useState<string | null>(null)
 
+  // ——— Nouveaux rapports (périodes / par caissier) ———
+  const [reportGranularite, setReportGranularite] =
+    useState<VenteReportGranularite>("semaine")
+  const [reportSource, setReportSource] = useState<VenteReportSource>("tous")
+  const [reportPeriodes, setReportPeriodes] =
+    useState<ApiVentesReportPeriodes | null>(null)
+  const [reportPeriodesLoading, setReportPeriodesLoading] = useState(false)
+  const [reportPeriodesError, setReportPeriodesError] = useState<string | null>(
+    null
+  )
+  const [reportCaissiers, setReportCaissiers] =
+    useState<ApiVentesReportParCaissier | null>(null)
+  const [reportCaissiersLoading, setReportCaissiersLoading] = useState(false)
+  const [reportCaissiersError, setReportCaissiersError] = useState<
+    string | null
+  >(null)
+
+  // ——— Factures de vente ———
+  const [factures, setFactures] = useState<ApiFactureVente[]>([])
+  const [facturesPage, setFacturesPage] = useState(1)
+  const [facturesTotal, setFacturesTotal] = useState(0)
+  const [facturesLoading, setFacturesLoading] = useState(false)
+  const [facturesError, setFacturesError] = useState<string | null>(null)
+  const [factureSearchInput, setFactureSearchInput] = useState("")
+  const [appliedFactureSearch, setAppliedFactureSearch] = useState("")
+  const [factureSourceFilter, setFactureSourceFilter] = useState("all")
+  const [viewingFacture, setViewingFacture] = useState<ApiFactureVente | null>(
+    null
+  )
+  const [factureDetailLoading, setFactureDetailLoading] = useState(false)
+  const [factureCreateOpen, setFactureCreateOpen] = useState(false)
+  const [factureSaving, setFactureSaving] = useState(false)
+  const [factureSource, setFactureSource] = useState<"COMPTANT" | "LIVRAISON">(
+    "COMPTANT"
+  )
+  const [factureVenteId, setFactureVenteId] = useState("")
+  const [factureLivraisonIds, setFactureLivraisonIds] = useState<string[]>([])
+  const [factureInvoiceDate, setFactureInvoiceDate] = useState("")
+  const [factureNotes, setFactureNotes] = useState("")
+
+  // ——— Annulation d'une vente au comptant ———
+  const [annulerVente, setAnnulerVente] = useState<ApiVenteComptant | null>(
+    null
+  )
+  const [annulationMotif, setAnnulationMotif] = useState("")
+  const [annulationSaving, setAnnulationSaving] = useState(false)
+
   // ——— Détails ———
   const [viewingCommande, setViewingCommande] =
     useState<ApiCommandeVente | null>(null)
@@ -910,11 +970,7 @@ export default function VentesPage() {
       depot_id: requiredRule("Le dépôt source est requis."),
       article_id: requiredRule("L'article est requis."),
       qty: positiveQuantityRule(),
-      unit_price_ht: decimalRule(),
-      montant_ttc: [
-        requiredRule("Le montant TTC est requis."),
-        decimalRule("Montant TTC positif attendu."),
-      ],
+      unit_price_ttc: decimalRule(),
       montant_encaisse: decimalRule("Montant encaissé positif attendu."),
       notes: maxLengthRule(1000),
       ...(isSuperadmin
@@ -983,6 +1039,15 @@ export default function VentesPage() {
     }, 300)
     return () => clearTimeout(timer)
   }, [posFilter])
+
+  // Recherche différée sur le numéro de facture.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedFactureSearch(factureSearchInput.trim())
+      setFacturesPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [factureSearchInput])
 
   const invalidPosFilter =
     isSuperadmin &&
@@ -1201,6 +1266,133 @@ export default function VentesPage() {
     void load()
   }, [loadReports])
 
+  // ——— Nouveaux rapports (découpage temporel + par caissier) ———
+  const loadAnalyses = useCallback(async () => {
+    if (invalidPosFilter) {
+      setReportPeriodes(null)
+      setReportCaissiers(null)
+      setReportPeriodesError(posFilterError)
+      setReportCaissiersError(posFilterError)
+      setReportPeriodesLoading(false)
+      setReportCaissiersLoading(false)
+      return
+    }
+
+    const posId = isSuperadmin ? appliedPosFilter || undefined : pointOfSaleId
+    setReportPeriodesLoading(true)
+    setReportCaissiersLoading(true)
+    try {
+      const [periodesRes, caissiersRes] = await Promise.all([
+        venteService.reportPeriodes({
+          granularite: reportGranularite,
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          source: reportSource,
+          article_families_id:
+            familyFilter === "all" ? undefined : Number(familyFilter),
+        }),
+        venteService.reportParCaissier({
+          date_from: dateFrom || undefined,
+          date_to: dateTo || undefined,
+          granularite: reportGranularite,
+          point_of_sale_id: posId,
+        }),
+      ])
+      setReportPeriodes(periodesRes.report)
+      setReportCaissiers(caissiersRes.report)
+      setReportPeriodesError(null)
+      setReportCaissiersError(null)
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.details || error.message
+          : "Impossible de charger les analyses de ventes."
+      setReportPeriodes(null)
+      setReportCaissiers(null)
+      setReportPeriodesError(message)
+      setReportCaissiersError(message)
+    } finally {
+      setReportPeriodesLoading(false)
+      setReportCaissiersLoading(false)
+    }
+  }, [
+    appliedPosFilter,
+    dateFrom,
+    dateTo,
+    familyFilter,
+    invalidPosFilter,
+    isSuperadmin,
+    pointOfSaleId,
+    posFilterError,
+    reportGranularite,
+    reportSource,
+  ])
+
+  useEffect(() => {
+    if (activeTab !== "rapports") return
+    queueMicrotask(() => void loadAnalyses())
+  }, [activeTab, loadAnalyses])
+
+  // ——— Factures de vente ———
+  const loadFactures = useCallback(async () => {
+    if (invalidPosFilter) {
+      setFactures([])
+      setFacturesTotal(0)
+      setFacturesError(posFilterError)
+      setFacturesLoading(false)
+      return
+    }
+
+    setFacturesLoading(true)
+    try {
+      const response = await venteService.listFacturesVente({
+        page: facturesPage,
+        limit: PAGE_SIZE,
+        client_id: clientFilter === "all" ? undefined : clientFilter,
+        source:
+          factureSourceFilter === "all"
+            ? undefined
+            : (factureSourceFilter as ApiFactureVenteSource),
+        search: appliedFactureSearch || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        point_of_sale_id: isSuperadmin
+          ? appliedPosFilter || undefined
+          : pointOfSaleId,
+      })
+      setFactures(response.factures)
+      setFacturesTotal(response.meta.total)
+      setFacturesError(null)
+    } catch (error) {
+      setFactures([])
+      setFacturesTotal(0)
+      setFacturesError(
+        error instanceof ApiError
+          ? error.details || error.message
+          : "Impossible de charger les factures de vente."
+      )
+    } finally {
+      setFacturesLoading(false)
+    }
+  }, [
+    appliedFactureSearch,
+    appliedPosFilter,
+    clientFilter,
+    dateFrom,
+    dateTo,
+    factureSourceFilter,
+    facturesPage,
+    invalidPosFilter,
+    isSuperadmin,
+    pointOfSaleId,
+    posFilterError,
+  ])
+
+  useEffect(() => {
+    if (activeTab !== "factures") return
+    queueMicrotask(() => void loadFactures())
+  }, [activeTab, loadFactures])
+
   // ——— Détails ———
   async function openCommandeDetails(commande: ApiCommandeVente) {
     setViewingCommande(commande)
@@ -1256,6 +1448,73 @@ export default function VentesPage() {
       )
     } finally {
       setVenteDetailLoading(false)
+    }
+  }
+
+  async function openFactureDetails(facture: ApiFactureVente) {
+    setViewingFacture(facture)
+    setFactureDetailLoading(true)
+    try {
+      const { facture: detail } = await venteService.getFactureVente(
+        facture.facture_id
+      )
+      setViewingFacture(detail)
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "Impossible de charger le détail de la facture"
+      )
+    } finally {
+      setFactureDetailLoading(false)
+    }
+  }
+
+  function openAnnulationDialog(vente: ApiVenteComptant) {
+    setAnnulerVente(vente)
+    setAnnulationMotif("")
+  }
+
+  async function handleAnnulerVente() {
+    if (!annulerVente) return
+    const motif = annulationMotif.trim()
+    if (motif.length < 3 || motif.length > 1000) {
+      toast.error("Motif invalide", {
+        description: "Saisissez un motif de 3 à 1000 caractères.",
+      })
+      return
+    }
+    setAnnulationSaving(true)
+    try {
+      await venteService.annulerVenteComptant(annulerVente.vente_id, { motif })
+      toast.success(`Vente ${annulerVente.vente_code} annulée`)
+      setAnnulerVente(null)
+      setAnnulationMotif("")
+      if (viewingVente?.vente_id === annulerVente.vente_id) {
+        setViewingVente(null)
+      }
+      void loadVentesComptant()
+      void loadAnalyses()
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError
+          ? error.details || error.message
+          : "Impossible d'annuler la vente"
+      )
+    } finally {
+      setAnnulationSaving(false)
+    }
+  }
+
+  async function handleDownloadFacture(facture: ApiFactureVente) {
+    try {
+      await venteService.downloadFactureVentePdf(facture)
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError
+          ? error.message
+          : "Impossible de télécharger la facture"
+      )
     }
   }
 
@@ -1369,9 +1628,7 @@ export default function VentesPage() {
           ? venteComptantForm.values.point_of_sale_id || undefined
           : pointOfSaleId,
         mode_paiement: venteComptantForm.values.mode_paiement,
-        montant_ttc: Number(
-          normalizeDecimal(venteComptantForm.values.montant_ttc)
-        ),
+        // Le TTC est calculé par l'API ; seul l'encaissement est transmis.
         montant_encaisse: venteComptantForm.values.montant_encaisse.trim()
           ? Number(normalizeDecimal(venteComptantForm.values.montant_encaisse))
           : undefined,
@@ -1380,8 +1637,8 @@ export default function VentesPage() {
           {
             article_id: venteComptantForm.values.article_id,
             qty: Number(normalizeDecimal(venteComptantForm.values.qty)),
-            unit_price_ht: venteComptantForm.values.unit_price_ht.trim()
-              ? Number(normalizeDecimal(venteComptantForm.values.unit_price_ht))
+            unit_price_ttc: venteComptantForm.values.unit_price_ttc.trim()
+              ? Number(normalizeDecimal(venteComptantForm.values.unit_price_ttc))
               : undefined,
           },
         ],
@@ -1402,12 +1659,57 @@ export default function VentesPage() {
     }
   }
 
+  const handleCreateFacture = async () => {
+    if (
+      (factureSource === "COMPTANT" && !factureVenteId) ||
+      (factureSource === "LIVRAISON" && factureLivraisonIds.length === 0)
+    ) {
+      toast.error(
+        factureSource === "COMPTANT"
+          ? "Sélectionnez une vente au comptant."
+          : "Sélectionnez au moins un bon de livraison."
+      )
+      return
+    }
+    const payload: CreateFactureVentePayload = {
+      ...(factureSource === "COMPTANT"
+        ? { vente_id: factureVenteId }
+        : { livraison_ids: factureLivraisonIds }),
+      invoice_date: factureInvoiceDate || undefined,
+      notes: factureNotes.trim() || undefined,
+    }
+    setFactureSaving(true)
+    try {
+      const { facture } = await venteService.createFactureVente(payload)
+      toast.success(`Facture ${facture.facture_code} créée`)
+      setFactureCreateOpen(false)
+      setFactureVenteId("")
+      setFactureLivraisonIds([])
+      setFactureInvoiceDate("")
+      setFactureNotes("")
+      void loadFactures()
+      void loadVentesComptant()
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError
+          ? error.details || error.message
+          : "Impossible de créer la facture"
+      )
+    } finally {
+      setFactureSaving(false)
+    }
+  }
+
   // ——— Barre d'outils ———
   function refreshCurrent() {
     if (activeTab === "commandes") void loadCommandes()
     else if (activeTab === "livraisons") void loadLivraisons()
     else if (activeTab === "comptant") void loadVentesComptant()
-    else void loadReports()
+    else if (activeTab === "factures") void loadFactures()
+    else {
+      void loadReports()
+      void loadAnalyses()
+    }
   }
 
   function resetFilters() {
@@ -1417,9 +1719,13 @@ export default function VentesPage() {
     setDateFrom("")
     setDateTo("")
     setFamilyFilter("all")
+    setFactureSearchInput("")
+    setAppliedFactureSearch("")
+    setFactureSourceFilter("all")
     setCommandesPage(1)
     setLivraisonsPage(1)
     setVentesComptantPage(1)
+    setFacturesPage(1)
   }
 
   const tabItems = [
@@ -1430,6 +1736,7 @@ export default function VentesPage() {
     },
     { key: "livraisons" as const, label: "Livraisons", icon: TruckIcon },
     { key: "comptant" as const, label: "Ventes comptant", icon: WalletIcon },
+    { key: "factures" as const, label: "Factures", icon: FileTextIcon },
     {
       key: "rapports" as const,
       label: "Rapports",
@@ -1444,7 +1751,9 @@ export default function VentesPage() {
         ? `${livraisonsTotal} livraison${livraisonsTotal > 1 ? "s" : ""}`
         : activeTab === "comptant"
           ? `${ventesComptantTotal} vente${ventesComptantTotal > 1 ? "s" : ""}`
-          : `${reportParArticle.length} ligne${reportParArticle.length > 1 ? "s" : ""}`
+          : activeTab === "factures"
+            ? `${facturesTotal} facture${facturesTotal > 1 ? "s" : ""}`
+            : `${reportParArticle.length} ligne${reportParArticle.length > 1 ? "s" : ""}`
 
   const currentLoading =
     activeTab === "commandes"
@@ -1453,7 +1762,9 @@ export default function VentesPage() {
         ? livraisonsLoading
         : activeTab === "comptant"
           ? ventesComptantLoading
-          : reportLoading
+          : activeTab === "factures"
+            ? facturesLoading
+            : reportLoading || reportPeriodesLoading || reportCaissiersLoading
 
   // ============================================================================
   // Rendu
@@ -1919,6 +2230,279 @@ export default function VentesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Annulation d'une vente au comptant (admin/superadmin) */}
+      <Dialog
+        open={annulerVente !== null}
+        onOpenChange={(open) => {
+          if (!open && !annulationSaving) {
+            setAnnulerVente(null)
+            setAnnulationMotif("")
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Annuler la vente {annulerVente?.vente_code ?? ""}
+            </DialogTitle>
+            <DialogDescription>
+              Le montant est reversé en stock (mouvement ENTREE) et la vente ne
+              compte plus dans les rapports ni les totaux de caisse. Une vente
+              facturée ou rattachée à une caisse fermée ne peut plus être
+              annulée.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="grid gap-2">
+            <AtomLabel htmlFor="annulation-vente-motif">
+              Motif (3 à 1000 caractères)
+            </AtomLabel>
+            <AtomTextarea
+              id="annulation-vente-motif"
+              rows={3}
+              maxLength={1000}
+              value={annulationMotif}
+              placeholder="Ex. : erreur de saisie sur la quantité"
+              onChange={(event) => setAnnulationMotif(event.target.value)}
+            />
+          </DialogBody>
+          <DialogFooter>
+            <AtomButton
+              variant="outline"
+              onClick={() => setAnnulerVente(null)}
+              disabled={annulationSaving}
+            >
+              Conserver la vente
+            </AtomButton>
+            <AtomButton
+              variant="destructive"
+              iconLeft={BanIcon}
+              onClick={() => void handleAnnulerVente()}
+              disabled={annulationSaving || annulationMotif.trim().length < 3}
+            >
+              {annulationSaving ? "Annulation…" : "Annuler la vente"}
+            </AtomButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Création d'une facture de vente */}
+      <Dialog
+        open={factureCreateOpen}
+        onOpenChange={(open) => {
+          if (!open && !factureSaving) setFactureCreateOpen(false)
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nouvelle facture de vente</DialogTitle>
+            <DialogDescription>
+              Une facture est émise depuis une vente au comptant ou depuis des
+              bons de livraison validés et non facturés. Le numéro est attribué
+              par l'API (FAV-année-00001).
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="grid gap-4">
+            <Select
+              value={factureSource}
+              onValueChange={(value) => {
+                setFactureSource(value as "COMPTANT" | "LIVRAISON")
+                setFactureVenteId("")
+                setFactureLivraisonIds([])
+              }}
+            >
+              <SelectTrigger aria-label="Source de la facture">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="COMPTANT">Vente au comptant</SelectItem>
+                <SelectItem value="LIVRAISON">Bon de livraison</SelectItem>
+              </SelectContent>
+            </Select>
+            {factureSource === "COMPTANT" ? (
+              <MSelectField
+                label="Vente à facturer"
+                value={factureVenteId}
+                onValueChange={setFactureVenteId}
+                options={ventesComptant
+                  .filter(
+                    (vente) =>
+                      vente.status === "VALIDEE" && !vente.facture_id
+                  )
+                  .map((vente) => ({
+                    value: vente.vente_id,
+                    label: `${vente.vente_code} · ${formatVenteMoney(vente.montant_ttc)}`,
+                  }))}
+                placeholder="Sélectionner une vente…"
+                disabled={factureSaving}
+                searchPlaceholder="Rechercher une vente…"
+              />
+            ) : (
+              <div className="grid gap-2">
+                <AtomLabel>Bons de livraison à facturer</AtomLabel>
+                <div className="grid max-h-52 gap-2 overflow-y-auto rounded-lg border p-2">
+                  {livraisons
+                    .filter((livraison) => livraison.status === "VALIDE")
+                    .map((livraison) => (
+                      <label
+                        key={livraison.livraison_id}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <Checkbox
+                          checked={factureLivraisonIds.includes(
+                            livraison.livraison_id
+                          )}
+                          onCheckedChange={(checked) =>
+                            setFactureLivraisonIds((previous) =>
+                              checked
+                                ? [...previous, livraison.livraison_id]
+                                : previous.filter(
+                                    (id) => id !== livraison.livraison_id
+                                  )
+                            )
+                          }
+                        />
+                        <span>
+                          {livraison.livraison_code} ·{" "}
+                          {clientVenteLabel(clients, livraison.client_id)}
+                        </span>
+                      </label>
+                    ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Les BL doivent avoir le même client et le même point de vente.
+                </p>
+              </div>
+            )}
+            <MField
+              label="Date de facture"
+              type="date"
+              value={factureInvoiceDate}
+              onChange={(event) => setFactureInvoiceDate(event.target.value)}
+              disabled={factureSaving}
+            />
+            <div className="grid gap-1.5">
+              <AtomLabel htmlFor="facture-vente-notes">Notes</AtomLabel>
+              <AtomTextarea
+                id="facture-vente-notes"
+                rows={2}
+                value={factureNotes}
+                placeholder="Mentions complémentaires…"
+                onChange={(event) => setFactureNotes(event.target.value)}
+                disabled={factureSaving}
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <AtomButton
+              variant="outline"
+              onClick={() => setFactureCreateOpen(false)}
+              disabled={factureSaving}
+            >
+              Annuler
+            </AtomButton>
+            <AtomButton
+              iconLeft={FileTextIcon}
+              onClick={() => void handleCreateFacture()}
+              disabled={factureSaving}
+            >
+              {factureSaving ? "Création…" : "Créer la facture"}
+            </AtomButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Détail d'une facture de vente */}
+      <Dialog
+        open={viewingFacture !== null}
+        onOpenChange={(open) => {
+          if (!open) setViewingFacture(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {viewingFacture?.facture_code ?? "Facture de vente"}
+            </DialogTitle>
+            <DialogDescription>
+              Détail de la facture et lignes figées à l'émission.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            {factureDetailLoading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                <Loader2Icon className="size-4 animate-spin" />
+                Chargement…
+              </div>
+            ) : viewingFacture ? (
+              <MVenteDocumentDetails
+                articles={articles}
+                fields={[
+                  { label: "Numéro", value: viewingFacture.facture_code },
+                  {
+                    label: "Date de facture",
+                    value: formatVenteDate(viewingFacture.invoice_date),
+                  },
+                  {
+                    label: "Client",
+                    value:
+                      viewingFacture.client?.client_name ??
+                      clientVenteLabel(clients, viewingFacture.client_id),
+                  },
+                  {
+                    label: "Source",
+                    value: factureVenteSourceLabel(viewingFacture.source),
+                  },
+                  {
+                    label: "Statut",
+                    value: factureVenteStatusLabel(viewingFacture.status),
+                  },
+                  {
+                    label: "Mode de paiement",
+                    value: modePaiementLabel(
+                      viewingFacture.mode_paiement ?? undefined
+                    ),
+                  },
+                  {
+                    label: "Total HT",
+                    value: formatVenteMoney(viewingFacture.montant_ht),
+                  },
+                  {
+                    label: "TVA",
+                    value: formatVenteMoney(viewingFacture.montant_tva),
+                  },
+                  {
+                    label: "Total TTC",
+                    value: formatVenteMoney(viewingFacture.montant_ttc),
+                  },
+                  ...(viewingFacture.notes
+                    ? [{ label: "Notes", value: viewingFacture.notes }]
+                    : []),
+                ]}
+                lines={(viewingFacture.lignes ?? []).map((ligne) => ({
+                  key: ligne.ligne_id,
+                  article_id: ligne.article_id,
+                  qty: ligne.qty,
+                  unit_price_ht: ligne.unit_price_ht,
+                  note: `${ligne.article_code} · ${formatVenteMoney(ligne.unit_price_ttc)} TTC · TVA ${ligne.tva_rate} %`,
+                }))}
+              />
+            ) : null}
+          </DialogBody>
+          <DialogFooter>
+            {viewingFacture ? (
+              <AtomButton
+                variant="outline"
+                iconLeft={FileTextIcon}
+                onClick={() => void handleDownloadFacture(viewingFacture)}
+              >
+                Télécharger le PDF
+              </AtomButton>
+            ) : null}
+            <AtomButton onClick={() => setViewingFacture(null)}>Fermer</AtomButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <AtomBadge variant="outline">Gestion</AtomBadge>
@@ -1968,6 +2552,14 @@ export default function VentesPage() {
                 disabled={venteComptantSaving}
               >
                 Nouvelle vente comptant
+              </AtomButton>
+            ) : activeTab === "factures" ? (
+              <AtomButton
+                iconLeft={PlusIcon}
+                onClick={() => setFactureCreateOpen(true)}
+                disabled={factureSaving}
+              >
+                Nouvelle facture
               </AtomButton>
             ) : null}
           </CardAction>
@@ -2038,7 +2630,51 @@ export default function VentesPage() {
                   ))}
                 </SelectContent>
               </Select>
-            ) : (
+            ) : null}
+            {activeTab === "factures" ? (
+              <>
+                <AtomInput
+                  value={factureSearchInput}
+                  onChange={(event) => setFactureSearchInput(event.target.value)}
+                  placeholder="Numéro de facture…"
+                  aria-label="Rechercher une facture"
+                  className="w-52"
+                />
+                <AtomInput
+                  type="date"
+                  value={dateFrom}
+                  onChange={(event) => setDateFrom(event.target.value)}
+                  aria-label="Date de début"
+                  title="Du"
+                  className="w-40"
+                />
+                <AtomInput
+                  type="date"
+                  value={dateTo}
+                  onChange={(event) => setDateTo(event.target.value)}
+                  aria-label="Date de fin"
+                  title="Au"
+                  className="w-40"
+                />
+                <Select
+                  value={factureSourceFilter}
+                  onValueChange={(value) => {
+                    setFactureSourceFilter(value)
+                    setFacturesPage(1)
+                  }}
+                >
+                  <SelectTrigger size="sm" className="w-44" aria-label="Source de facture">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes les sources</SelectItem>
+                    <SelectItem value="COMPTANT">Vente comptant</SelectItem>
+                    <SelectItem value="LIVRAISON">Livraison</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            ) : null}
+            {activeTab === "rapports" ? (
               <>
                 <AtomInput
                   type="date"
@@ -2076,8 +2712,46 @@ export default function VentesPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Select
+                  value={reportGranularite}
+                  onValueChange={(value) =>
+                    setReportGranularite(value as VenteReportGranularite)
+                  }
+                >
+                  <SelectTrigger size="sm" className="w-32" aria-label="Granularité">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(VENTE_REPORT_GRANULARITE_LABELS).map(
+                      ([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={reportSource}
+                  onValueChange={(value) =>
+                    setReportSource(value as VenteReportSource)
+                  }
+                >
+                  <SelectTrigger size="sm" className="w-44" aria-label="Source des rapports">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(VENTE_REPORT_SOURCE_LABELS).map(
+                      ([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
               </>
-            )}
+            ) : null}
 
             {isSuperadmin ? (
               <AtomInput
@@ -2149,6 +2823,7 @@ export default function VentesPage() {
                 error={ventesComptantError}
                 showPointOfSale={isSuperadmin}
                 onView={(vente) => void openVenteDetails(vente)}
+                onAnnuler={openAnnulationDialog}
                 onRetry={() => void loadVentesComptant()}
               />
               <MPagination
@@ -2159,24 +2834,60 @@ export default function VentesPage() {
                 onPageChange={setVentesComptantPage}
               />
             </>
+          ) : activeTab === "factures" ? (
+            <>
+              <OFacturesVenteTable
+                factures={factures}
+                clients={clients}
+                loading={facturesLoading}
+                error={facturesError}
+                showPointOfSale={isSuperadmin}
+                onView={(facture) => void openFactureDetails(facture)}
+                onDownloadPdf={(facture) => void handleDownloadFacture(facture)}
+                onRetry={() => void loadFactures()}
+              />
+              <MPagination
+                page={facturesPage}
+                limit={PAGE_SIZE}
+                total={facturesTotal}
+                disabled={facturesLoading}
+                onPageChange={setFacturesPage}
+              />
+            </>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-2">
-              <OVentesReportTable
-                mode="article"
-                rows={reportParArticle}
-                families={families}
-                loading={reportLoading}
-                error={reportError}
-                onRetry={() => void loadReports()}
-              />
-              <OVentesReportTable
-                mode="famille"
-                rows={reportParFamille}
-                families={families}
-                loading={reportLoading}
-                error={reportError}
-                onRetry={() => void loadReports()}
-              />
+            <div className="grid gap-6">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <OVentesReportTable
+                  mode="article"
+                  rows={reportParArticle}
+                  families={families}
+                  loading={reportLoading}
+                  error={reportError}
+                  onRetry={() => void loadReports()}
+                />
+                <OVentesReportTable
+                  mode="famille"
+                  rows={reportParFamille}
+                  families={families}
+                  loading={reportLoading}
+                  error={reportError}
+                  onRetry={() => void loadReports()}
+                />
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <OVentesReportPeriodes
+                  report={reportPeriodes}
+                  loading={reportPeriodesLoading}
+                  error={reportPeriodesError}
+                  onRetry={() => void loadAnalyses()}
+                />
+                <OVentesReportCaissiers
+                  report={reportCaissiers}
+                  loading={reportCaissiersLoading}
+                  error={reportCaissiersError}
+                  onRetry={() => void loadAnalyses()}
+                />
+              </div>
             </div>
           )}
         </CardContent>

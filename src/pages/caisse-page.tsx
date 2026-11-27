@@ -1,8 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { PrinterIcon, ShoppingCartIcon } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  FileTextIcon,
+  PlusIcon,
+  PrinterIcon,
+  SearchIcon,
+  ShoppingCartIcon,
+} from "lucide-react"
 import { toast } from "sonner"
-import { AtomButton } from "@/components/atoms"
-import { MConfirmDialog } from "@/components/molecules"
+import { AtomBadge, AtomButton } from "@/components/atoms"
+import { MConfirmDialog, MPagination } from "@/components/molecules"
 import { OCaisseAdminPanel } from "@/components/organisms"
 import {
   Card,
@@ -11,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -18,10 +25,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { useAuth } from "@/context/auth-context"
 import { ApiError } from "@/lib/api-client"
-import { normalizeDecimal } from "@/lib/articles"
+import {
+  ARTICLE_STATUS_OPTIONS,
+  articleFamilyLabel,
+  articleStatusToQuery,
+  articleUnitLabel,
+  formatArticlePrice,
+  formatArticleQuantity,
+  normalizeDecimal,
+  type ArticleStatusFilter,
+} from "@/lib/articles"
 import { roleLabel } from "@/lib/roles"
+import * as articleFamilyService from "@/services/article-family.service"
 import * as articleService from "@/services/article.service"
 import * as caisseService from "@/services/caisse.service"
 import * as clientService from "@/services/client.service"
@@ -29,17 +55,20 @@ import * as depotService from "@/services/depot.service"
 import * as permissionService from "@/services/permission.service"
 import * as venteService from "@/services/vente.service"
 import type {
-  ApiArticleOption,
+  ApiArticle,
+  ApiArticleFamily,
   ApiCaisseSession,
   ApiModePaiement,
+  ArticleSortField,
+  ArticlesQuery,
 } from "@/types/api"
 
 // Écran de vente au comptant. Le caissier doit avoir une session de caisse du
 // jour ouverte (docs/caisse.md) ; les ventes ADMIN/SUPERADMIN ne sont pas
-// rattachées à une caisse. Les données de vente proviennent exclusivement des
-// routes `/select`, seules autorisées pour le rôle CASHIER.
+// rattachées à une caisse. Le catalogue est paginé côté serveur via GET
+// /articles (page, limit, search, filtres et tri).
 
-type CartLine = { article: ApiArticleOption; qty: number }
+type CartLine = { article: ApiArticle; qty: number }
 
 const MODES: ApiModePaiement[] = [
   "ESPECES",
@@ -71,11 +100,28 @@ export function CaissePage() {
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [flags, setFlags] = useState<Record<string, boolean> | null>(null)
 
-  const [articles, setArticles] = useState<ApiArticleOption[]>([])
+  const [articles, setArticles] = useState<ApiArticle[]>([])
+  const [families, setFamilies] = useState<ApiArticleFamily[]>([])
   const [clients, setClients] = useState<{ client_id: string; client_name: string }[]>([])
   const [depots, setDepots] = useState<{ depot_id: string; depot_name: string }[]>([])
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [catalogError, setCatalogError] = useState<string | null>(null)
+  /** Incrémenté après une vente pour rafraîchir les stocks du catalogue. */
+  const [catalogReloadKey, setCatalogReloadKey] = useState(0)
+
+  // Paramètres envoyés à GET /articles. Publiés par défaut (comportement de
+  // l'ancien /articles/select), tri par nom pour retrouver un article vite.
+  const [articleQuery, setArticleQuery] = useState<ArticlesQuery>({
+    page: 1,
+    limit: 20,
+    is_publish: true,
+    sort_by: "article_name",
+    sort_order: "ASC",
+  })
+  const [searchInput, setSearchInput] = useState("")
+  const [articleStatus, setArticleStatus] = useState<ArticleStatusFilter>("published")
+  const [articleMeta, setArticleMeta] = useState({ page: 1, limit: 20, total: 0 })
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [fondOuverture, setFondOuverture] = useState("")
   const [notesOuverture, setNotesOuverture] = useState("")
@@ -89,6 +135,12 @@ export function CaissePage() {
   const [montantEncaisse, setMontantEncaisse] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [lastTicket, setLastTicket] = useState<string | null>(null)
+  const [lastVente, setLastVente] = useState<{
+    vente_id: string
+    vente_code: string
+    facture_id?: string | null
+  } | null>(null)
+  const [facturationLoading, setFacturationLoading] = useState(false)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
   const [confirmCheckoutOpen, setConfirmCheckoutOpen] = useState(false)
   const [confirmOpenRegister, setConfirmOpenRegister] = useState(false)
@@ -144,22 +196,18 @@ export function CaissePage() {
     }
   }, [isCashier, reloadSession])
 
-  // Le catalogue de vente n'est chargé que lorsqu'une caisse utilisable est
-  // ouverte (ou pour un admin qui vend sans caisse).
+  // Listes de référence (clients, dépôts, familles) chargées une seule fois
+  // dès que la vente est autorisée.
   useEffect(() => {
     if (sessionLoading || !canSell) return
     let cancelled = false
     async function load() {
-      setCatalogLoading(true)
-      setCatalogError(null)
       try {
-        const [arts, cls, dps] = await Promise.all([
-          articleService.listArticleOptions(),
+        const [cls, dps] = await Promise.all([
           clientService.listClientOptions(),
           depotService.listDepotOptions(),
         ])
         if (cancelled) return
-        setArticles(arts.options)
         setClients(cls.options.map((c) => ({ client_id: c.client_id, client_name: c.client_name })))
         setDepots(dps.options.map((d) => ({ depot_id: d.depot_id, depot_name: d.depot_name })))
         setSelectedDepot((prev) => (prev ? prev : dps.options[0]?.depot_id ?? ""))
@@ -168,10 +216,17 @@ export function CaissePage() {
         setCatalogError(
           err instanceof ApiError
             ? err.details || err.message
-            : "Chargement du catalogue impossible."
+            : "Chargement des référentiels impossible."
         )
-      } finally {
-        if (!cancelled) setCatalogLoading(false)
+      }
+
+      try {
+        const { families: loaded } = await articleFamilyService.listArticleFamilies({
+          limit: 100,
+        })
+        if (!cancelled) setFamilies(loaded)
+      } catch {
+        // Le filtre famille est masqué si le rôle ne peut pas lire les familles.
       }
     }
     void load()
@@ -180,7 +235,95 @@ export function CaissePage() {
     }
   }, [canSell, sessionLoading])
 
-  const addToCart = useCallback((article: ApiArticleOption) => {
+  // Catalogue paginé : toute modification de `articleQuery` recharge la page
+  // correspondante (recherche, filtres, tri ou changement de page).
+  useEffect(() => {
+    if (sessionLoading || !canSell) return
+    let cancelled = false
+    // Diffère le setState initial pour éviter un rendu en cascade dans l'effet.
+    queueMicrotask(() => {
+      if (cancelled) return
+      setCatalogLoading(true)
+      setCatalogError(null)
+      articleService
+        .listArticles(articleQuery)
+        .then(({ articles: loaded, meta }) => {
+          if (cancelled) return
+          setArticles(loaded)
+          setArticleMeta({ page: meta.page, limit: meta.limit, total: meta.total })
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return
+          setCatalogError(
+            err instanceof ApiError
+              ? err.details || err.message
+              : "Chargement des articles impossible."
+          )
+        })
+        .finally(() => {
+          if (!cancelled) setCatalogLoading(false)
+        })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [articleQuery, canSell, catalogReloadKey, sessionLoading])
+
+  useEffect(
+    () => () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    },
+    []
+  )
+
+  /** Recherche serveur différée pour éviter une requête par frappe. */
+  function handleSearchChange(value: string) {
+    setSearchInput(value)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      setArticleQuery((previous) => ({
+        ...previous,
+        search: value.trim() || undefined,
+        page: 1,
+      }))
+    }, 300)
+  }
+
+  function handleStatusChange(value: ArticleStatusFilter) {
+    setArticleStatus(value)
+    setArticleQuery((previous) => ({
+      ...previous,
+      is_publish: articleStatusToQuery(value),
+      page: 1,
+    }))
+  }
+
+  function handleFamilyChange(value: string) {
+    setArticleQuery((previous) => ({
+      ...previous,
+      article_families_id: value === "all" ? undefined : Number(value),
+      page: 1,
+    }))
+  }
+
+  function handleSortChange(value: ArticleSortField) {
+    setArticleQuery((previous) => ({
+      ...previous,
+      sort_by: value,
+      sort_order: value === "created_at" ? "DESC" : "ASC",
+      page: 1,
+    }))
+  }
+
+  function handleSortOrderChange(value: "ASC" | "DESC") {
+    setArticleQuery((previous) => ({ ...previous, sort_order: value, page: 1 }))
+  }
+
+  function handleLimitChange(value: number) {
+    setArticleQuery((previous) => ({ ...previous, limit: value, page: 1 }))
+  }
+
+  const addToCart = useCallback((article: ApiArticle) => {
     setCart((prev) => {
       const existing = prev.find((l) => l.article.article_id === article.article_id)
       const available = article.article_available_qty
@@ -291,6 +434,16 @@ export function CaissePage() {
       toast.error("Sélectionnez un dépôt")
       return
     }
+    // L'API exige un encaissement >= TTC calculé (le TTC du corps est ignoré).
+    const encaisse = montantEncaisse
+      ? Number(normalizeDecimal(montantEncaisse))
+      : totalTtc
+    if (!Number.isFinite(encaisse) || encaisse < totalTtc) {
+      toast.error("Montant encaissé insuffisant", {
+        description: `Le montant doit être au moins égal au TTC (${money(totalTtc)}).`,
+      })
+      return
+    }
     setSubmitting(true)
     try {
       const payload = {
@@ -299,12 +452,11 @@ export function CaissePage() {
         point_of_sale_id: posId || undefined,
         ...(isCashier && session ? { caisse_session_id: session.session_id } : {}),
         mode_paiement: mode,
-        montant_ttc: totalTtc,
-        montant_encaisse: montantEncaisse ? Number(normalizeDecimal(montantEncaisse)) : totalTtc,
+        montant_encaisse: encaisse,
         lines: cart.map((l) => ({
           article_id: l.article.article_id,
           qty: l.qty,
-          unit_price_ht: Number(money(l.article.article_sale_price_ht)),
+          unit_price_ttc: Number(money(l.article.article_sale_price_ttc)),
         })),
       }
       const { vente } = await venteService.createVenteComptant(payload)
@@ -318,14 +470,21 @@ export function CaissePage() {
         ``,
         ...cart.map((l) => `${l.article.article_name} x${l.qty}  ${money(Number(money(l.article.article_sale_price_ttc)) * l.qty)}`),
         ``,
-        `Total HT: ${money(totalHt)}`,
-        `Total TTC: ${money(totalTtc)}`,
-        `Encaissé: ${money(payload.montant_encaisse)}`,
+        `Total HT: ${money(vente.montant_total_ht ?? totalHt)}`,
+        `TVA: ${money(vente.montant_tva)}`,
+        `Total TTC: ${money(vente.montant_ttc ?? totalTtc)}`,
+        `Encaissé: ${money(vente.montant_encaisse ?? encaisse)}`,
+        `Monnaie rendue: ${money(vente.monnaie_rendue)}`,
         `Mode: ${mode}`,
         ``,
         `Merci de votre visite !`,
       ].join("\n")
       setLastTicket(ticket)
+      setLastVente({
+        vente_id: vente.vente_id,
+        vente_code: vente.vente_code,
+        facture_id: vente.facture_id,
+      })
       const w = window.open("", "_blank", "width=400,height=600")
       if (w) {
         w.document.write(
@@ -337,6 +496,8 @@ export function CaissePage() {
       }
       setCart([])
       setMontantEncaisse("")
+      // La vente a décrémenté le stock : recharge la page courante du catalogue.
+      setCatalogReloadKey((key) => key + 1)
       if (isCashier) await reloadSession()
     } catch (err) {
       toast.error("Vente impossible", {
@@ -356,6 +517,29 @@ export function CaissePage() {
       w.document.close()
       w.focus()
       w.print()
+    }
+  }
+
+  /** Le caissier peut facturer sa propre vente (docs/ventes.md). */
+  async function handleFacturer() {
+    if (!lastVente || lastVente.facture_id) return
+    setFacturationLoading(true)
+    try {
+      const { facture } = await venteService.createFactureVente({
+        vente_id: lastVente.vente_id,
+      })
+      setLastVente((previous) =>
+        previous ? { ...previous, facture_id: facture.facture_id } : null
+      )
+      toast.success(`Facture ${facture.facture_code} créée`)
+      await venteService.downloadFactureVentePdf(facture)
+    } catch (err) {
+      toast.error("Facturation impossible", {
+        description:
+          err instanceof ApiError ? err.details || err.message : "Erreur inattendue",
+      })
+    } finally {
+      setFacturationLoading(false)
     }
   }
 
@@ -518,6 +702,16 @@ export function CaissePage() {
               Réimprimer
             </AtomButton>
           ) : null}
+          {lastVente && !lastVente.facture_id ? (
+            <AtomButton
+              variant="outline"
+              iconLeft={FileTextIcon}
+              onClick={() => void handleFacturer()}
+              disabled={facturationLoading}
+            >
+              {facturationLoading ? "Facturation…" : "Facturer la vente"}
+            </AtomButton>
+          ) : null}
           {isCashier && session ? (
             <AtomButton variant="outline" onClick={() => setConfirmCloseOpen(true)}>
               Fermer la caisse
@@ -579,35 +773,192 @@ export function CaissePage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Produits</CardTitle>
-            <CardDescription>Cliquez pour ajouter au panier.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {catalogLoading ? (
-              <p className="text-sm text-muted-foreground">Chargement…</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {articles.map((a) => (
-                  <button
-                    key={a.article_id}
-                    type="button"
-                    onClick={() => addToCart(a)}
-                    disabled={!canSell || (a.article_available_qty !== undefined && Number(a.article_available_qty) <= 0)}
-                    className="rounded-md border p-3 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <p className="font-medium truncate">{a.article_name}</p>
-                    <p className="text-xs text-muted-foreground">{a.article_code}</p>
-                    <p className="mt-1 font-semibold">{money(a.article_sale_price_ttc)} Ar</p>
-                    {a.article_available_qty !== undefined ? (
-                      <p className="text-xs text-muted-foreground">
-                        Dispo. : {a.article_available_qty}
-                      </p>
-                    ) : null}
-                  </button>
-                ))}
+          <CardHeader className="flex flex-col gap-3">
+            <div>
+              <CardTitle>Produits</CardTitle>
+              <CardDescription>
+                Recherche et pagination serveur — cliquez sur « Ajouter » pour
+                alimenter le panier.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-52 flex-1">
+                <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchInput}
+                  onChange={(event) => handleSearchChange(event.target.value)}
+                  placeholder="Code, nom, code-barres, référence…"
+                  className="pl-8"
+                  aria-label="Rechercher un article"
+                />
               </div>
-            )}
+              {families.length > 0 ? (
+                <Select
+                  value={
+                    articleQuery.article_families_id === undefined
+                      ? "all"
+                      : String(articleQuery.article_families_id)
+                  }
+                  onValueChange={handleFamilyChange}
+                >
+                  <SelectTrigger className="w-40" aria-label="Famille">
+                    <SelectValue placeholder="Toutes les familles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes les familles</SelectItem>
+                    {families.map((family) => (
+                      <SelectItem
+                        key={family.article_families_id}
+                        value={String(family.article_families_id)}
+                      >
+                        {family.article_families_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
+              <Select value={articleStatus} onValueChange={(v) => handleStatusChange(v as ArticleStatusFilter)}>
+                <SelectTrigger className="w-40" aria-label="Statut">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ARTICLE_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={articleQuery.sort_by ?? "created_at"}
+                onValueChange={(v) => handleSortChange(v as ArticleSortField)}
+              >
+                <SelectTrigger className="w-40" aria-label="Tri">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="article_name">Tri : nom</SelectItem>
+                  <SelectItem value="article_code">Tri : code</SelectItem>
+                  <SelectItem value="created_at">Tri : plus récents</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={articleQuery.sort_order ?? "ASC"}
+                onValueChange={(v) => handleSortOrderChange(v as "ASC" | "DESC")}
+              >
+                <SelectTrigger className="w-24" aria-label="Ordre de tri">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ASC">ASC</SelectItem>
+                  <SelectItem value="DESC">DESC</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={articleQuery.limit === 10 ? "10" : articleQuery.limit === 50 ? "50" : "20"}
+                onValueChange={(v) => handleLimitChange(Number(v))}
+              >
+                <SelectTrigger className="w-24" aria-label="Nombre par page">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="overflow-hidden rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Article</TableHead>
+                    <TableHead>Code / barcode</TableHead>
+                    <TableHead>Famille</TableHead>
+                    <TableHead className="text-right">Prix vente TTC</TableHead>
+                    <TableHead className="text-right">Stock dispo.</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {catalogLoading ? (
+                    Array.from({ length: 5 }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        <TableCell colSpan={6}>
+                          <Skeleton className="h-8 w-full" />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : articles.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                        Aucun article ne correspond à ces critères.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    articles.map((article) => {
+                      const available = Number(article.article_available_qty)
+                      const inStock = Number.isFinite(available) && available > 0
+                      const disabled = !canSell || !inStock
+                      return (
+                        <TableRow key={article.article_id}>
+                          <TableCell className="max-w-56">
+                            <span className="block truncate font-medium">{article.article_name}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {articleUnitLabel(article.article_unit)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <AtomBadge variant="outline" className="font-mono">
+                              {article.article_code}
+                            </AtomBadge>
+                            {article.article_barcode?.trim() ? (
+                              <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
+                                {article.article_barcode}
+                              </span>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="max-w-40">
+                            <span className="block truncate text-sm">
+                              {articleFamilyLabel(families, article.article_families_id)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right text-sm tabular-nums">
+                            {formatArticlePrice(article.article_sale_price_ttc)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <AtomBadge variant={inStock ? "secondary" : "outline"}>
+                              {formatArticleQuantity(article.article_available_qty)}
+                            </AtomBadge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <AtomButton
+                              size="sm"
+                              iconLeft={PlusIcon}
+                              disabled={disabled}
+                              onClick={() => addToCart(article)}
+                            >
+                              Ajouter
+                            </AtomButton>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <MPagination
+              page={articleMeta.page}
+              limit={articleMeta.limit}
+              total={articleMeta.total}
+              disabled={catalogLoading}
+              onPageChange={(page) =>
+                setArticleQuery((previous) => ({ ...previous, page }))
+              }
+            />
           </CardContent>
         </Card>
 

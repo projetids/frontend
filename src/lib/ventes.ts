@@ -4,9 +4,13 @@ import type {
   ApiCommandeVente,
   ApiCommandeVenteStatus,
   ApiDepotOption,
+  ApiFactureVenteSource,
+  ApiFactureVenteStatus,
   ApiModePaiement,
   ApiVenteComptantStatus,
   ApiVenteReportRow,
+  VenteReportGranularite,
+  VenteReportSource,
 } from "@/types/api"
 
 // ——— Status labels ———
@@ -17,6 +21,7 @@ export const COMMANDE_VENTE_STATUS_LABELS: Record<
 > = {
   BROUILLON: "Brouillon",
   VALIDEE: "Validée",
+  PARTIELLEMENT_LIVREE: "Partiellement livrée",
   LIVREE: "Livrée",
   FACTUREE: "Facturée",
   CLOTUREE: "Clôturée",
@@ -39,6 +44,22 @@ export const VENTE_COMPTANT_STATUS_LABELS: Record<
   ANNULEE: "Annulée",
 }
 
+export const FACTURE_VENTE_STATUS_LABELS: Record<
+  ApiFactureVenteStatus,
+  string
+> = {
+  VALIDEE: "Validée",
+  ANNULEE: "Annulée",
+}
+
+export const FACTURE_VENTE_SOURCE_LABELS: Record<
+  ApiFactureVenteSource,
+  string
+> = {
+  COMPTANT: "Vente comptant",
+  LIVRAISON: "Bon de livraison",
+}
+
 export const MODE_PAIEMENT_LABELS: Record<ApiModePaiement, string> = {
   ESPECES: "Espèces",
   MOBILE_MONEY: "Mobile Money",
@@ -46,6 +67,21 @@ export const MODE_PAIEMENT_LABELS: Record<ApiModePaiement, string> = {
   VIREMENT: "Virement",
   CHEQUE: "Chèque",
   AUTRE: "Autre",
+}
+
+export const VENTE_REPORT_GRANULARITE_LABELS: Record<
+  VenteReportGranularite,
+  string
+> = {
+  jour: "Jour",
+  semaine: "Semaine",
+  mois: "Mois",
+}
+
+export const VENTE_REPORT_SOURCE_LABELS: Record<VenteReportSource, string> = {
+  tous: "Toutes les sources",
+  comptant: "Ventes comptant",
+  livraison: "Livraisons",
 }
 
 export function commandeVenteStatusLabel(status?: string): string {
@@ -67,6 +103,20 @@ export function venteComptantStatusLabel(status?: string): string {
   )
 }
 
+export function factureVenteStatusLabel(status?: string): string {
+  if (!status) return "—"
+  return (
+    FACTURE_VENTE_STATUS_LABELS[status as ApiFactureVenteStatus] ?? status
+  )
+}
+
+export function factureVenteSourceLabel(source?: string): string {
+  if (!source) return "—"
+  return (
+    FACTURE_VENTE_SOURCE_LABELS[source as ApiFactureVenteSource] ?? source
+  )
+}
+
 export function modePaiementLabel(mode?: string): string {
   if (!mode) return "—"
   return MODE_PAIEMENT_LABELS[mode as ApiModePaiement] ?? mode
@@ -81,6 +131,8 @@ export function venteStatusBadgeVariant(
     case "VALIDEE":
     case "VALIDE":
     case "LIVREE":
+    case "PARTIELLEMENT_LIVREE":
+      return "secondary"
     case "FACTUREE":
     case "CLOTUREE":
       return "default"

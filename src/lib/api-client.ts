@@ -189,6 +189,45 @@ export async function apiRequest<T>(
 }
 
 /** Les routes d'auth publiques gèrent elles-mêmes leurs 401 (pas de replay). */
+/**
+ * Télécharge une réponse binaire (PDF…) avec le même Bearer/refresh que
+ * `apiRequest`, puis déclenche le téléchargement dans le navigateur.
+ */
+export async function apiDownload(path: string, filename: string) {
+  async function send() {
+    const token = getAccessToken()
+    return fetch(buildUrl(path), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  }
+
+  let response = await send()
+  if (response.status === 401 && !isPublicAuthRoute(path)) {
+    if (await refreshAccessToken()) response = await send()
+  }
+  if (!response.ok) {
+    const payload = await readJson(response)
+    if (isEnvelope(payload) && payload.error) {
+      throw new ApiError(
+        payload.status ?? response.status,
+        payload.error.code,
+        payload.message,
+        payload.error.details
+      )
+    }
+    throw new ApiError(response.status, "HTTP_ERROR", `Erreur HTTP ${response.status}`)
+  }
+
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement("a")
+  link.href = url
+  link.download = filename
+  document.body.append(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 function isPublicAuthRoute(path: string): boolean {
   return path.startsWith("/auth/login") || path.startsWith("/auth/refresh")
 }

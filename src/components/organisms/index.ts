@@ -66,6 +66,16 @@ export {
   type OVentesReportTableProps,
 } from "./o-ventes-report-table"
 export {
+  OFacturesVenteTable,
+  type OFacturesVenteTableProps,
+} from "./o-factures-vente-table"
+export {
+  OVentesReportPeriodes,
+  type OVentesReportPeriodesProps,
+  OVentesReportCaissiers,
+  type OVentesReportCaissiersProps,
+} from "./o-ventes-report-analyses"
+export {
   OExcelImportDialog,
   type ExcelImportError,
   type ExcelImportResponse,

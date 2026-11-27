@@ -1,4 +1,4 @@
-import { EyeIcon } from "lucide-react"
+import { BanIcon, EyeIcon } from "lucide-react"
 import { AtomBadge, AtomButton } from "@/components/atoms"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -35,6 +35,8 @@ export type OVentesComptantTableProps = {
   error: string | null
   showPointOfSale?: boolean
   onView: (vente: ApiVenteComptant) => void
+  /** Annulation réservée aux admins disposant de A40 + A31. */
+  onAnnuler?: (vente: ApiVenteComptant) => void
   onRetry: () => void
 }
 
@@ -46,6 +48,7 @@ export function OVentesComptantTable({
   error,
   showPointOfSale = false,
   onView,
+  onAnnuler,
   onRetry,
 }: OVentesComptantTableProps) {
   if (error) {
@@ -59,7 +62,7 @@ export function OVentesComptantTable({
     )
   }
 
-  const columnCount = showPointOfSale ? 9 : 8
+  const columnCount = showPointOfSale ? 10 : 9
 
   return (
     <div className="overflow-hidden rounded-lg border">
@@ -146,16 +149,30 @@ export function OVentesComptantTable({
                   </TableCell>
                 ) : null}
                 <TableCell className="text-right">
-                  <AtomButton
-                    size="icon-sm"
-                    variant="ghost"
-                    iconLeft={EyeIcon}
-                    aria-label="Voir la vente"
-                    title="Voir le détail"
-                    onClick={() => onView(vente)}
-                  >
-                    <span className="sr-only">Voir le détail</span>
-                  </AtomButton>
+                  <div className="flex justify-end gap-1">
+                    <AtomButton
+                      size="icon-sm"
+                      variant="ghost"
+                      iconLeft={EyeIcon}
+                      aria-label="Voir la vente"
+                      title="Voir le détail"
+                      onClick={() => onView(vente)}
+                    >
+                      <span className="sr-only">Voir le détail</span>
+                    </AtomButton>
+                    {onAnnuler && vente.status === "VALIDEE" && !vente.facture_id ? (
+                      <AtomButton
+                        size="icon-sm"
+                        variant="ghost"
+                        iconLeft={BanIcon}
+                        aria-label="Annuler la vente"
+                        title="Annuler la vente (retour en stock)"
+                        onClick={() => onAnnuler(vente)}
+                      >
+                        <span className="sr-only">Annuler la vente</span>
+                      </AtomButton>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))
